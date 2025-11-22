@@ -1,0 +1,123 @@
+#!/usr/bin/env nextflow
+
+// Run using 'nextflow run boss_variant_input.nf -entry VARIANT_INPUT -with-conda -resume -c ../nextflow.config'
+
+/*
+ * Pipeline parameters
+ */
+params.exp_name = "benchmark_hg002_chr21"
+params.chromosomes = ["21", "22"]
+params.link_ref_base = "https://ftp.ensembl.org/pub/release-114/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.chromosome."//${params.chr}.fa.gz"
+
+params.link_vcf = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz"
+params.link_vcf_idx = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz.tbi"
+
+params.base_out_dir = "/hps/software/users/goldman/ipoetzsch/${params.exp_name}"
+params.output_dir_data = "${params.base_out_dir}/data"
+
+
+process getRef {
+    clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
+    publishDir "${params.output_dir_data}", mode: 'symlink'
+    input:
+        val ref_link
+        val chr
+    output:
+        path '*.fa.gz', emit: ref_path
+    script:
+    """
+    wget "${ref_link}${chr}.fa.gz"
+    """
+
+}
+
+process combineRef{
+    clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
+    publishDir "${params.output_dir_data}", mode: 'symlink'
+    input:
+        path refs
+    output:
+        path '*.fa.gz', emit: ref_path
+    script:
+    """
+    cat "${refs}" > "Homo_sapiens.GRCh38.dna.chromosome.${params.chromosomes.join(".")}.fa.gz"
+    """
+}
+
+process getVCF {
+    clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
+    publishDir "${params.output_dir_data}", mode: 'symlink'
+    input:
+        val vcf_link
+        val idx_link
+    output:
+        tuple path('*.vcf.gz', emit: vcf_path), path('*.vcf.gz.tbi', emit: vcf_idx)
+    script:
+    """
+    wget $vcf_link
+    wget $idx_link
+    """
+
+}
+
+process subsetVCF {
+    clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
+    publishDir "${params.output_dir_data}", mode: 'symlink'
+    input:
+        tuple path(full_vcf), path(full_idx)
+    output:
+        tuple path('*.vcf.gz', emit: vcf), path('*.vcf.gz.tbi', emit:vcf_idx)
+
+    script:
+    chr_string = params.chr.collect{"chr" + it}.join("|")
+    chr_name_match = params.chr.collect{"chr" + it + " " + it}.join("\n")
+    """
+    echo "${chr_name_match}" > chr_name_match.txt
+    module load bcftools
+    bcftools view -r "$chr_string" -Oz $full_vcf | bcftools annotate -Oz --rename-chrs chr_name_match.txt -o "${params.chromosomes.join(".")}_${full_vcf}"
+    bcftools index -t "${params.chromosomes.join(".")}_${full_vcf}"
+    """
+}
+
+
+process getConsensus {
+    clusterOptions '--mem=4G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
+    publishDir "${params.output_dir_data}", mode: 'symlink'
+    input:
+        tuple path(vcf), path(vcf_idx)
+        path ref
+    output:
+        path '*.fa', emit:consensus
+    script:
+    """
+    module load bcftools
+    bcftools consensus -f $ref $vcf -o consensus_${vcf.getBaseName(2)}.fa
+    """
+}
+
+workflow VARIANT_INPUT{
+    // Download reference file(s) for each chromosome and benchmark vcfs + index 
+    input_ref = Channel.of(params.link_ref)
+
+    downloaded_ref = getRef(input_ref, params.chromosomes)
+
+    // Combine reference files into one file if necessary
+    if (params.chromosomes.size() > 1){
+        ref = combineRef(input_ref.collect())
+    }
+    else{
+        ref = downloaded_ref
+    }
+
+    // Download benchmark vcf set and index
+    input_vcf = Channel.of(params.link_vcf)
+    input_vcf_idx = Channel.of(params.link_vcf_idx)
+    downloaded_vcf_idx = getVCF(input_vcf, input_vcf_idx)
+
+
+    // Subset VCF to just the chromosomes that we are sequencing and index subsetted vcf
+    subset_vcf = subsetVCF(downloaded_vcf_idx)
+
+    // Create a consensus sequence for each 'individual'
+    ind_genome = getConsensus(subset_vcf.vcf, downloaded_ref.ref_path)
+} 
