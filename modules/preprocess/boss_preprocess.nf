@@ -7,24 +7,23 @@
  */
 params.exp_name = "benchmark_hg002_chr21"
 
-params.genome = "/hps/software/users/goldman/ipoetzsch/benchmark_hg002_chr21/data/consensus_21_HG002_GRCh38_1_22_v4.2.1_benchmark.fa"
-params.ref = "/hps/software/users/goldman/ipoetzsch/benchmark_hg002_chr21/data/Homo_sapiens.GRCh38.dna.chromosome.21.fa"
+// params.input_base_dir -- defined in nextflow.config
+params.genome = "${params.base_input_dir}/${params.exp_name}/variant_input/consensus_21_HG002_GRCh38_1_22_v4.2.1_benchmark.fa"
+params.ref = "${params.base_input_dir}/${params.exp_name}/variant_input/Homo_sapiens.GRCh38.dna.chromosome.21.fa"
 
-params.abs_path_to_nanosim_repo = "/hps/software/users/goldman/ipoetzsch/NanoSim"
+params.abs_path_to_nanosim_repo = "${params.software_dir}/NanoSim"
 params.model = "${params.abs_path_to_nanosim_repo}/pre-trained_models/human_giab_hg002_sub1M_kitv14_dorado_v3.2.1/training"
 params.readnumber = 1000000
 
-params.abspath_to_boss_runs_repo = "/hps/software/users/goldman/ipoetzsch/BOSS-RUNS2"
+params.abspath_to_boss_runs_repo = "${params.software_dir}/BOSS-RUNS2"
 params.mu = 400
-params.toml = "/hps/nobackup/goldman/ipoetzsch/benchmark_hg002_chr21/br_input/benchmark_hg002_chr21.toml"
 params.dump_time = 35000000
 params.accept_unmapped = "true"
 
-params.base_out_dir = "/hps/nobackup/goldman/ipoetzsch/${params.exp_name}"
-params.output_dir_data = "${params.base_out_dir}/data"
-params.output_dir_nanosim = "${params.base_out_dir}/nanosim_out"
-params.output_dir_br_input = "${params.base_out_dir}/br_input"
-params.output_dir_br_output = "${params.base_out_dir}/br_output"
+params.base_out_preprocess = "${params.base_out_dir}/${params.exp_name}"
+params.output_dir_nanosim = "${params.base_out_preprocess}/nanosim_out"
+params.output_dir_br_input = "${params.base_out_preprocess}/br_input"
+params.output_dir_br_output = "${params.base_out_preprocess}/br_output"
 
 
 process simNanofastq { 
@@ -38,7 +37,7 @@ process simNanofastq {
         }
         
     )
-    conda '/hps/software/users/goldman/ipoetzsch/conda/envs/nanosim'
+    conda "${params.conda_base_dir}/nanosim"
     input:
         path consensus_ref
 
@@ -65,7 +64,7 @@ process truncateFq {
             else {"${fn}" }
         }
     )
-    conda '/hps/software/users/goldman/ipoetzsch/conda/envs/boss2'
+    conda "${params.conda_base_dir}/boss2"
     input: 
         path aligned_fastq
     output: 
@@ -82,7 +81,7 @@ process truncateFq {
 process scan_offsetsFq {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_br_input}", mode: 'symlink'
-    conda '/hps/software/users/goldman/ipoetzsch/conda/envs/boss2'
+    conda "${params.conda_base_dir}/boss2"
     input: 
         path aligned_fastq
     output: 
@@ -90,7 +89,7 @@ process scan_offsetsFq {
 
     script:
     """
-    python3 $params.abspath_to_boss_runs_repo/scripts/scan_offsets_fq_nf.py $aligned_fastq
+    python3 ../../scripts/scan_offsets_fq_nf.py $aligned_fastq
     """
 }
 
@@ -98,7 +97,7 @@ process scan_offsetsFq {
 process mapPaf {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_br_input}", mode: 'symlink'
-    conda '/hps/software/users/goldman/ipoetzsch/conda/envs/boss2'
+    conda "${params.conda_base_dir}/boss2"
     input: 
         path aligned_fastq
         path ref
@@ -116,7 +115,7 @@ process mapPaf {
 process mapPaf_trunc {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_br_input}", mode: 'symlink'
-    conda '/hps/software/users/goldman/ipoetzsch/conda/envs/boss2'
+    conda "${params.conda_base_dir}/boss2"
     input: 
         path aligned_fastq_trunc
         path ref
@@ -136,7 +135,7 @@ process mapPaf_trunc {
 process scan_offsets_Paf {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_br_input}", mode: 'symlink'
-    conda '/hps/software/users/goldman/ipoetzsch/conda/envs/boss2'
+    conda "${params.conda_base_dir}/boss2"
     input: 
         path mappings
         path mappings_trunc
@@ -146,7 +145,7 @@ process scan_offsets_Paf {
 
     script:
     """
-    python3 $params.abspath_to_boss_runs_repo/scripts/scan_offsets_paf_nf.py ${mappings} ${mappings_trunc}
+    python3 ../../scripts/scan_offsets_paf_nf.py ${mappings} ${mappings_trunc}
     """
 }
 
@@ -193,7 +192,7 @@ accept_unmapped = ${params.accept_unmapped}" > "${params.exp_name}.toml"
 process runBRSim {
     clusterOptions '--mem=32G --nodes=4 --cpus-per-task=32 --ntasks=1 --time=03:00:00'
     publishDir "${params.output_dir_br_output}", mode: 'symlink'
-    conda '/hps/software/users/goldman/ipoetzsch/conda/envs/boss4'
+    conda "${params.conda_base_dir}/boss4"
     input: 
         path toml
     output: 
@@ -211,7 +210,7 @@ process runBRSim {
 // process getBam {
 //     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=03:00:00'
 //     publishDir "${params.output_dir_br_output}", mode: 'symlink'
-//     conda '/hps/software/users/goldman/ipoetzsch/conda/envs/boss4'
+//     conda "${params.conda_base_dir}/boss4"
 //     input: 
 //         path fastq
 //         path toml
@@ -236,12 +235,9 @@ workflow PREPROCESS_BOSS{
 
     // Simulate reads using Nanosim
     nanosim = simNanofastq(input_genome)
-    // nanosim.aligned_fastq.view()
 
     // Prepare input for BRsim
     // Truncate fq Step 1 of prepare input for BRsim
-    // nanosim.aligned_fastq.flatten().view()
-    // nanosim.aligned_fastq.view()
     trunc_fq = truncateFq(nanosim.aligned_fastq)
 
     // Scan fq offsets Step 2 of prepare input for BRsim
@@ -258,7 +254,8 @@ workflow PREPROCESS_BOSS{
     paf_offsets = scan_offsets_Paf(mpaf.mappings, mpaf_trunc.mappings_trunc)
 
     // Create toml file based on input files above
-    toml = writeToml(trunc_fq.full_fq, mpaf, mpaf_trunc, trunc_fq.trunc_fq, fq_offsets.fq_offsets.collect(), paf_offsets.mappings_offsets, paf_offsets.mappings_offsets_trunc)
+    toml = writeToml(trunc_fq.full_fq, mpaf, mpaf_trunc, trunc_fq.trunc_fq, fq_offsets.fq_offsets.collect(), 
+                    paf_offsets.mappings_offsets, paf_offsets.mappings_offsets_trunc)
 
     // Run brsim
     runBRSim(toml)

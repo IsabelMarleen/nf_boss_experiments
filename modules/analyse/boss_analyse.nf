@@ -1,21 +1,26 @@
 #!/usr/bin/env nextflow
 
-params.exp = "benchmark_hg002_chr21"
 params.exp_name = "benchmark_hg002_chr21"
+
+params.base_in_dir = "${params.base_out_dir}/${params.exp_name}"
+params.br_output = "${params.base_out_preprocess}/br_output"
+
+
 params.log_file = "20250905-193019_boss.log"
-params.path = "/hps/nobackup/goldman/ipoetzsch/boss_runs_out/"
-params.reads = "${params.path}${params.exp_name}/00_reads/"
-params.log = "${params.path}${params.exp_name}/${params.log_file}"
-params.ref = "/hps/nobackup/goldman/ipoetzsch/boss_runs_out/benchmark_hg002_chr21/data/Homo_sapiens.GRCh38.dna.chromosome.21.fa"
+
+params.path = "${params.br_output}/boss_runs_out"
+params.reads = "${params.path}/${params.exp_name}/00_reads/"
+params.log = "${params.path}/${params.exp_name}/${params.log_file}"
+params.ref = "${params.base_out_dir}/${params.exp_name}/variant_input/Homo_sapiens.GRCh38.dna.chromosome.21.fa"
 params.script_path = "${projectDir}/scripts"
 
 params.mu = 400
 params.dump_time = 35_000_000
 params.pores = 512
 
-params.rtg_dir_path = "/hps/software/users/goldman/ipoetzsch/rtg-tools-3.13/"
+params.rtg_dir_path = "${params.software_dir}/rtg-tools-3.13/"
 
-params.base_out_dir = "/hps/software/users/goldman/ipoetzsch/${params.exp_name}"
+params.base_out_dir = "${params.base_out_dir}/${params.exp_name}"
 params.output_dir_results = "${params.base_out_dir}/results"
 params.output_dir_debug = "${params.base_out_dir}/debug"
 
@@ -131,15 +136,6 @@ process createUnblock_dataframe {
 process create_coverage_dataframe { 
     clusterOptions '--mem=4G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
     publishDir "${params.output_dir_debug}/results", mode: 'symlink'
-    // publishDir (
-    //     path: "${params.output_dir_nanosim}", 
-    //     mode: 'copy',
-    //     saveAs: {fn ->
-    //         if (fn.endsWith(".fastq")) { "${file(fn).getBaseName(1)}.fq" }
-    //         else {"${fn}" }
-    //     }
-        
-    // )
     input:
         path csv
     output:
@@ -197,7 +193,7 @@ process visualise_simulation {
 
 process benchmark_variants {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:20:00'
-    publishDir "${params.output_dir_debug}/results", mode: 'copy'
+    publishDir "${params.output_dir_debug}/results", mode: 'symlink'
     input:
         path ground_truth_vcf
         path test_vcf
@@ -211,10 +207,6 @@ process benchmark_variants {
     """
     ".${params.rtg_dir_path}/rtg" format -o "${ref.getSimplename()}.sdf" ${ref}
     ".${params.rtg_dir_path}/rtg" vcfeval -b ${ground_truth_vcf} -c ${test_vcf} -t "${ref.getSimplename()}.sdf" -o "vcf_benchmark_${test_vcf.getsimpleName()}"
-
-    # ./rtg vcfeval -b /hps/nobackup/goldman/ipoetzsch/benchmark_hg002_chr21/data/21_HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz -c /hps/software/users/goldman/ipoetzsch/vcf_calling/output/boss_hg002_chr21.wf_snp.vcf.gz -o ../vcf_benchmark_control -t human_GRCh38_chr21_reference
-    # Reference sequence 21 is used in calls but not in baseline.
-    # 0 total baseline variants, no summary statistics available -- check whether og is labeled as 21 or chr21
     """
 }
 

@@ -12,13 +12,13 @@ params.link_ref_base = "https://ftp.ensembl.org/pub/release-114/fasta/homo_sapie
 params.link_vcf = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz"
 params.link_vcf_idx = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz.tbi"
 
-params.base_out_dir = "/hps/software/users/goldman/ipoetzsch/${params.exp_name}"
-params.output_dir_data = "${params.base_out_dir}/data"
+// params.base_out_dir is defined in the config file
+params.output_dir_vi = "${params.base_out_dir}/${params.exp_name}/variant_input"
 
 
 process getRef {
     clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
-    publishDir "${params.output_dir_data}", mode: 'symlink'
+    publishDir "${params.output_dir_vi}", mode: 'symlink'
     input:
         val ref_link
         val chr
@@ -33,7 +33,7 @@ process getRef {
 
 process combineRef{
     clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
-    publishDir "${params.output_dir_data}", mode: 'symlink'
+    publishDir "${params.output_dir_vi}", mode: 'symlink'
     input:
         path refs
     output:
@@ -46,7 +46,7 @@ process combineRef{
 
 process getVCF {
     clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
-    publishDir "${params.output_dir_data}", mode: 'symlink'
+    publishDir "${params.output_dir_vi}", mode: 'symlink'
     input:
         val vcf_link
         val idx_link
@@ -62,7 +62,7 @@ process getVCF {
 
 process subsetVCF {
     clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
-    publishDir "${params.output_dir_data}", mode: 'symlink'
+    publishDir "${params.output_dir_vi}", mode: 'symlink'
     input:
         tuple path(full_vcf), path(full_idx)
     output:
@@ -82,7 +82,7 @@ process subsetVCF {
 
 process getConsensus {
     clusterOptions '--mem=4G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
-    publishDir "${params.output_dir_data}", mode: 'symlink'
+    publishDir "${params.output_dir_vi}", mode: 'symlink'
     input:
         tuple path(vcf), path(vcf_idx)
         path ref

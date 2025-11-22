@@ -4,3 +4,9 @@
 .nextflow.log*
 .nextflow/
 nextflow.config
+
+# File to keep some notes
+notes.txt
+
+# Python
+__pycache__/
