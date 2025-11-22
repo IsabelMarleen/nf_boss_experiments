@@ -96,28 +96,43 @@ process getConsensus {
 }
 
 workflow VARIANT_INPUT{
-    // Download reference file(s) for each chromosome and benchmark vcfs + index 
+    take:
+        input_ref
+        input_vcf
+        input_vcf_idx
+    main:
+        // Download reference file(s) for each chromosome and benchmark vcfs + index 
+
+        downloaded_ref = getRef(input_ref, params.chromosomes)
+
+        // Combine reference files into one file if necessary
+        if (params.chromosomes.size() > 1){
+            ref = combineRef(input_ref.collect())
+        }
+        else{
+            ref = downloaded_ref
+        }
+
+        // Download benchmark vcf set and index
+        downloaded_vcf_idx = getVCF(input_vcf, input_vcf_idx)
+
+
+        // Subset VCF to just the chromosomes that we are sequencing and index subsetted vcf
+        subset_vcf = subsetVCF(downloaded_vcf_idx)
+
+        // Create a consensus sequence for each 'individual'
+        ind_genome = getConsensus(subset_vcf.vcf, downloaded_ref.ref_path)
+        
+    emit:
+        ref
+        subsetVCF
+        ind_genome
+} 
+
+workflow {
     input_ref = Channel.of(params.link_ref)
-
-    downloaded_ref = getRef(input_ref, params.chromosomes)
-
-    // Combine reference files into one file if necessary
-    if (params.chromosomes.size() > 1){
-        ref = combineRef(input_ref.collect())
-    }
-    else{
-        ref = downloaded_ref
-    }
-
-    // Download benchmark vcf set and index
     input_vcf = Channel.of(params.link_vcf)
     input_vcf_idx = Channel.of(params.link_vcf_idx)
-    downloaded_vcf_idx = getVCF(input_vcf, input_vcf_idx)
 
-
-    // Subset VCF to just the chromosomes that we are sequencing and index subsetted vcf
-    subset_vcf = subsetVCF(downloaded_vcf_idx)
-
-    // Create a consensus sequence for each 'individual'
-    ind_genome = getConsensus(subset_vcf.vcf, downloaded_ref.ref_path)
-} 
+    VARIANT_INPUT(input_ref, input_vcf, input_vcf_idx)
+}

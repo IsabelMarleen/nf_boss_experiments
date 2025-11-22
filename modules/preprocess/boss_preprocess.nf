@@ -162,24 +162,21 @@ process writeToml {
         path fq_offsets
         path full_paf_offsets
         path trunc_paf_offsets
+        path reference
     output: 
         path("*.toml")
 
     script:
     maxb = params.readnumber*0.6/1000 as Integer
-    fq = "${params.output_dir_br_input}/${full_fq.getSimpleName()}.fq"
-    paf_full = "${params.output_dir_br_input}/${full_paf.getSimpleName()}.paf" 
-    paf_trunc = "${params.output_dir_br_input}/${trunc_paf.getSimpleName()}.paf"
-
     """
     echo "[general]
 name = '"${params.exp_name}"'                   # experiment name
-ref = '"$params.ref"'                        # reference fasta file. Not specifying a file switches to BOSS-AEONS
+ref = '"${reference}"'                        # reference fasta file. Not specifying a file switches to BOSS-AEONS
 
 [simulation]
-fq = '"${fq}"'                   # fastq file
-paf_full = '"${paf_full}"'     # full mapping paf file
-paf_trunc = '"${paf_trunc}"'            # truncated mapping paf file
+fq = '"${full_fq}"'                   # fastq file
+paf_full = '"${full_paf}"'     # full mapping paf file
+paf_trunc = '"${trunc_paf}"'            # truncated mapping paf file
 maxb = $maxb                  # maximum number of batches
 batchsize = 1000 # How many reads are processed at once
 binit = 10
@@ -229,34 +226,53 @@ process runBRSim {
 // }
 
 workflow PREPROCESS_BOSS{
-    // Download reference file(s) for each chromosome and benchmark vcfs + index 
+    take:
+        input_genome
+        ref
+    main:
+        // Simulate reads using Nanosim
+        nanosim = simNanofastq(input_genome)
+
+        // Prepare input for BRsim
+        // Truncate fq Step 1 of prepare input for BRsim
+        trunc_fq = truncateFq(nanosim.aligned_fastq)
+
+        // Scan fq offsets Step 2 of prepare input for BRsim
+        fq_combined = trunc_fq.full_fq.mix(trunc_fq.trunc_fq)
+        fq_offsets = scan_offsetsFq(fq_combined)
+
+        // Map paf Step 3 of prepare input for BRsim
+        mpaf = mapPaf(nanosim.aligned_fastq, input_genome)
+
+        // Map paf trunc Step 4 of prepare input for BRsim
+        mpaf_trunc = mapPaf_trunc(trunc_fq.trunc_fq, input_genome)
+
+        // Scan paf offsets Step 5 of prepare input for BRsim
+        paf_offsets = scan_offsets_Paf(mpaf.mappings, mpaf_trunc.mappings_trunc)
+
+        // Create toml file based on input files above
+        toml = writeToml(trunc_fq.full_fq, mpaf, mpaf_trunc, trunc_fq.trunc_fq, fq_offsets.fq_offsets.collect(), 
+                        paf_offsets.mappings_offsets, paf_offsets.mappings_offsets_trunc, ref)
+
+
+    emit:
+        toml
+}
+
+workflow  PREPROCESS_WITH_SEQ{
     input_genome = Channel.of(params.genome)
-
-
-    // Simulate reads using Nanosim
-    nanosim = simNanofastq(input_genome)
-
-    // Prepare input for BRsim
-    // Truncate fq Step 1 of prepare input for BRsim
-    trunc_fq = truncateFq(nanosim.aligned_fastq)
-
-    // Scan fq offsets Step 2 of prepare input for BRsim
-    fq_combined = trunc_fq.full_fq.mix(trunc_fq.trunc_fq)
-    fq_offsets = scan_offsetsFq(fq_combined)
-
-    // Map paf Step 3 of prepare input for BRsim
-    mpaf = mapPaf(nanosim.aligned_fastq, input_genome)
-
-    // Map paf trunc Step 4 of prepare input for BRsim
-    mpaf_trunc = mapPaf_trunc(trunc_fq.trunc_fq, input_genome)
-
-    // Scan paf offsets Step 5 of prepare input for BRsim
-    paf_offsets = scan_offsets_Paf(mpaf.mappings, mpaf_trunc.mappings_trunc)
-
-    // Create toml file based on input files above
-    toml = writeToml(trunc_fq.full_fq, mpaf, mpaf_trunc, trunc_fq.trunc_fq, fq_offsets.fq_offsets.collect(), 
-                    paf_offsets.mappings_offsets, paf_offsets.mappings_offsets_trunc)
+    reference = Channel.of(params.ref)
+    // Run preprocessing
+    toml = PREPROCESS_BOSS(input_genome, reference) 
 
     // Run brsim
     runBRSim(toml)
-} 
+}
+
+workflow  {
+    // Download reference file(s) for each chromosome and benchmark vcfs + index 
+    input_genome = Channel.of(params.genome)
+    reference = Channel.of(params.ref)
+
+    PREPROCESS_BOSS(input_genome, reference)
+}

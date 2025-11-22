@@ -9,11 +9,9 @@ params.exp_name = "benchmark_hg002_chr21"
 params.abspath_to_boss_runs_repo = "${params.software_dir}/BOSS-RUNS2"
 
 params.base_in_dir = "${params.base_out_dir}/${params.exp_name}"
-params.br_input = "${params.base_in_dir}/br_input"
 params.seq_br_output = "${params.base_in_dir}/sequence/br_output"
 
 params.toml = "${params.br_input}/static_benchmark_hg002_chr21.toml"
-params.mu = 400
 
 
 // Run br sim
@@ -61,7 +59,17 @@ process TimeProfilerunBRSim {
 
 
 workflow SEQUENCE_BOSS{
+    take:
+        input_toml
+    main:
+        seq = runBRSim(input_toml)
+    emit:
+        dir = seq.dir
+        reads_dir = seq.reads_dir
+        log = seq.log
+}
+
+workflow  {
     input_toml = channel.of(params.toml)
-    // runBRSim(input_toml)
     TimeProfilerunBRSim(input_toml)
 }

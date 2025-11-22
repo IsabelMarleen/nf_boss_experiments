@@ -211,50 +211,78 @@ process benchmark_variants {
 }
 
 workflow ANALYSE_BOSS{
+    take:
+        input_reads
+        seq_log
+        ref_input
+    main:
+        // Input reads            
+        input_reads
+            .map { tuple( it.simpleName, it ) }
+            .groupTuple()
+            .set { input_reads_collection }
+
+        // Index reference
+        ref_idx = indexPaf(ref_input)
+
+        // Map paf
+        first_map = mapPaf(input_reads, ref_idx.first())
+                
+        first_map
+                .map { tuple( it.simpleName, it ) }
+                .combine( input_reads_collection, by: 0 )
+                .transpose( by: 2 )
+                .map { case_id, paf, fa -> tuple( paf, fa ) }
+                .set{first_map_tuple}
+                
+
+        // Separate target
+        sep_target = separateTarget(first_map_tuple)
+
+        // Map sam
+        mapped_sam = mapSam(sep_target)
+
+        // Pileup
+        pile = pileup(mapped_sam)
+
+        // Record unblocks
+        unblocks_ind = recordUnblocks(sep_target)
+
+        // Create unblocks dataframe
+        unblocks = createUnblock_dataframe(unblocks_ind.collect())
+
+        // Create coverage dataframe
+        cov = create_coverage_dataframe(pile.csv.collect())
+
+        // Analyse log
+        analysed_log = analyse_log(seq_log)
+
+        // // Create plots
+        plots = visualise_simulation(cov, unblocks, analysed_log)
+    emit:
+        coverage = cov
+        unblocks = unblocks
+        plots = plots
+}
+
+workflow BENCHMARK_VCF {
+    take:
+        ref
+        ground_truth_vcf
+        test_vcf
+
+    main:
+        benchmark_variants(ground_truth_vcf, test_vcf, ref)
+    
+}
+
+workflow  {
     // Input reads
     input_reads = channel.fromPath( "${params.reads}*.fa" )
-        
-    input_reads
-        .map { tuple( it.simpleName, it ) }
-        .groupTuple()
-        .set { input_reads_collection }
-
+    // Sequence log
+    seq_log = channel.of("${params.log}")
     // Index reference
     ref_input = channel.fromPath("${params.ref}")
-    ref_idx = indexPaf(ref_input)
 
-    // Map paf
-    first_map = mapPaf(input_reads, ref_idx.first())
-            
-    first_map
-            .map { tuple( it.simpleName, it ) }
-            .combine( input_reads_collection, by: 0 )
-            .transpose( by: 2 )
-            .map { case_id, paf, fa -> tuple( paf, fa ) }
-            .set{first_map_tuple}
-            
-
-    // Separate target
-    sep_target = separateTarget(first_map_tuple)
-
-    // Map sam
-    mapped_sam = mapSam(sep_target)
-
-    // Pileup
-    pile = pileup(mapped_sam)
-
-    // Record unblocks
-    unblocks_ind = recordUnblocks(sep_target)
-
-    // Create unblocks dataframe
-    unblocks = createUnblock_dataframe(unblocks_ind.collect())
-
-    // Create coverage dataframe
-    cov = create_coverage_dataframe(pile.csv.collect())
-
-    // Analyse log
-    analysed_log = analyse_log(channel.of("${params.log}"))
-
-    // // Create plots
-    visualise_simulation(cov, unblocks, analysed_log)
-} 
+    ANALYSE_BOSS(input_reads, seq_log, ref_input)
+}
