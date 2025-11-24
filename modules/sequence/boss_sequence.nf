@@ -11,12 +11,14 @@ params.abspath_to_boss_runs_repo = "${params.software_dir}/BOSS-RUNS2"
 params.base_in_dir = "${params.base_out_dir}/${params.exp_name}"
 params.seq_br_output = "${params.base_in_dir}/sequence/br_output"
 
-params.toml = "${params.br_input}/static_benchmark_hg002_chr21.toml"
+params.br_input = "${params.base_in_dir}/preprocess/br_input"
+// params.toml = "${params.br_input}/static_benchmark_hg002_chr21.toml"
+params.toml = "/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/a0/c4632f88faa413f3b321fe0c40c1ce/benchmark_hg002_chr21.toml"
 
 
 // Run br sim
 process runBRSim {
-    clusterOptions '--mem=32G --nodes=4 --cpus-per-task=32 --ntasks=1 --time=03:00:00'
+    clusterOptions '--mem=64G --nodes=4 --cpus-per-task=32 --ntasks=1 --time=12:00:00'
     publishDir "${params.seq_br_output}", mode: 'symlink'
     conda "${params.conda_base_dir}/boss_profile"
     input: 
@@ -33,10 +35,9 @@ process runBRSim {
 }
 
 process TimeProfilerunBRSim {
-    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=03:00:00'
+    clusterOptions '--mem=64G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=12:00:00'
     publishDir "${params.seq_br_output}", mode: 'symlink'
     conda "${params.conda_base_dir}/boss_profile"
-    cache false
     input: 
         path toml
     output: 
@@ -64,12 +65,27 @@ workflow SEQUENCE_BOSS{
     main:
         seq = runBRSim(input_toml)
     emit:
+        dir = seq.out[0]
+        reads_dir = seq.out[1]
+        log = seq.out[2]
+}
+
+workflow SEQUENCE_PROFILE_BOSS{
+    take:
+        input_toml
+    main:
+        seq = TimeProfilerunBRSim(input_toml)
+    emit:
         dir = seq.dir
         reads_dir = seq.reads_dir
-        log = seq.log
+        l = seq.log
+        cprofile = seq.cprofile
+        cprofile_stdout = seq.cprofile_stdout
+
 }
 
 workflow  {
     input_toml = channel.of(params.toml)
-    TimeProfilerunBRSim(input_toml)
+    // TimeProfilerunBRSim(input_toml)
+    SEQUENCE_PROFILE_BOSS(input_toml)
 }

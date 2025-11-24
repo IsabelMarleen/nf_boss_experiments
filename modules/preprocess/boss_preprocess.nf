@@ -25,6 +25,7 @@ params.output_dir_nanosim = "${params.base_out_preprocess}/nanosim_out"
 params.output_dir_br_input = "${params.base_out_preprocess}/br_input"
 params.output_dir_br_output = "${params.base_out_preprocess}/br_output"
 
+params.script_path = "${projectDir}/scripts"
 
 process simNanofastq { 
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
@@ -89,7 +90,7 @@ process scan_offsetsFq {
 
     script:
     """
-    python3 ../../scripts/scan_offsets_fq_nf.py $aligned_fastq
+    python3 ${params.script_path}/scan_offsets_fq_nf.py $aligned_fastq
     """
 }
 
@@ -145,7 +146,7 @@ process scan_offsets_Paf {
 
     script:
     """
-    python3 ../../scripts/scan_offsets_paf_nf.py ${mappings} ${mappings_trunc}
+    python3 ${params.script_path}/scan_offsets_paf_nf.py ${mappings} ${mappings_trunc}
     """
 }
 
@@ -171,12 +172,13 @@ process writeToml {
     """
     echo "[general]
 name = '"${params.exp_name}"'                   # experiment name
-ref = '"${reference}"'                        # reference fasta file. Not specifying a file switches to BOSS-AEONS
+ref = '"\$PWD/${reference}"'                        # reference fasta file. Not specifying a file switches to BOSS-AEONS
+wait = 30                       # waiting time between updates in live version
 
 [simulation]
-fq = '"${full_fq}"'                   # fastq file
-paf_full = '"${full_paf}"'     # full mapping paf file
-paf_trunc = '"${trunc_paf}"'            # truncated mapping paf file
+fq = '"\$PWD/${full_fq}"'                   # fastq file
+paf_full = '"\$PWD/${full_paf}"'     # full mapping paf file
+paf_trunc = '"\$PWD/${trunc_paf}"'            # truncated mapping paf file
 maxb = $maxb                  # maximum number of batches
 batchsize = 1000 # How many reads are processed at once
 binit = 10
@@ -187,8 +189,8 @@ accept_unmapped = ${params.accept_unmapped}" > "${params.exp_name}.toml"
 
 // Run br sim
 process runBRSim {
-    clusterOptions '--mem=32G --nodes=4 --cpus-per-task=32 --ntasks=1 --time=03:00:00'
-    publishDir "${params.output_dir_br_output}", mode: 'symlink'
+    clusterOptions '--mem=128G --nodes=4 --cpus-per-task=64 --ntasks=1 --time=12:00:00'
+    publishDir "${params.output_dir_br_output}/11-22_20-53_rerun", mode: 'symlink'
     conda "${params.conda_base_dir}/boss4"
     input: 
         path toml
@@ -202,28 +204,6 @@ process runBRSim {
     boss --toml ${params.toml}
     """
 }
-
-// // Convert to bam
-// process getBam {
-//     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=03:00:00'
-//     publishDir "${params.output_dir_br_output}", mode: 'symlink'
-//     conda "${params.conda_base_dir}/boss4"
-//     input: 
-//         path fastq
-//         path toml
-//     output: 
-//         path "*.bam", emit: bam
-
-//     script:
-//     """
-//     module load samtools
-//     minimap2 -x -a map-ont -t 32 --secondary=no -c $params.ref $fastq | \
-//     samtools fixmate -u -m - - | \
-//     samtools sort -u -@2 -T /tmp/example_prefix - | \
-//     samtools markdup -@8 --reference $params.ref -o ${fastq.getSimpleName()}.bam
-
-//     """
-// }
 
 workflow PREPROCESS_BOSS{
     take:
@@ -254,7 +234,7 @@ workflow PREPROCESS_BOSS{
         toml = writeToml(trunc_fq.full_fq, mpaf, mpaf_trunc, trunc_fq.trunc_fq, fq_offsets.fq_offsets.collect(), 
                         paf_offsets.mappings_offsets, paf_offsets.mappings_offsets_trunc, ref)
 
-
+        // runBRSim(toml)
     emit:
         toml
 }

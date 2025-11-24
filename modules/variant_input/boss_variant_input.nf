@@ -6,8 +6,10 @@
  * Pipeline parameters
  */
 params.exp_name = "benchmark_hg002_chr21"
-params.chromosomes = ["21", "22"]
-params.link_ref_base = "https://ftp.ensembl.org/pub/release-114/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.chromosome."//${params.chr}.fa.gz"
+// params.chromosomes = ["21", "22"]
+params.chromosomes = "21"
+// params.link_ref_base = "https://ftp.ensembl.org/pub/release-114/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.chromosome."//${params.chr}.fa.gz"
+params.link_ref = "https://ftp.ensembl.org/pub/release-114/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.chromosome."//${params.chromosomes}.fa.gz"
 
 params.link_vcf = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz"
 params.link_vcf_idx = "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz.tbi"
@@ -40,7 +42,8 @@ process combineRef{
         path '*.fa.gz', emit: ref_path
     script:
     """
-    cat "${refs}" > "Homo_sapiens.GRCh38.dna.chromosome.${params.chromosomes.join(".")}.fa.gz"
+    # cat "${refs}" > "Homo_sapiens.GRCh38.dna.chromosome.${params.chromosomes.join(".")}.fa.gz"
+    cat "${refs}" > "Homo_sapiens.GRCh38.dna.chromosome.${params.chromosomes}.fa.gz"
     """
 }
 
@@ -51,7 +54,7 @@ process getVCF {
         val vcf_link
         val idx_link
     output:
-        tuple path('*.vcf.gz', emit: vcf_path), path('*.vcf.gz.tbi', emit: vcf_idx)
+        tuple path('*.vcf.gz'), path('*.vcf.gz.tbi')
     script:
     """
     wget $vcf_link
@@ -66,16 +69,20 @@ process subsetVCF {
     input:
         tuple path(full_vcf), path(full_idx)
     output:
-        tuple path('*.vcf.gz', emit: vcf), path('*.vcf.gz.tbi', emit:vcf_idx)
+        tuple path('*.vcf.gz'), path('*.vcf.gz.tbi')
 
     script:
-    chr_string = params.chr.collect{"chr" + it}.join("|")
-    chr_name_match = params.chr.collect{"chr" + it + " " + it}.join("\n")
+    // chr_string = params.chr.collect{"chr" + it}.join("|")
+    chr_string = "chr${params.chromosomes}"
+    // chr_name_match = params.chr.collect{"chr" + it + " " + it}.join("\n")
+    chr_name_match = "chr${params.chromosomes} ${params.chromosomes}"
     """
     echo "${chr_name_match}" > chr_name_match.txt
     module load bcftools
-    bcftools view -r "$chr_string" -Oz $full_vcf | bcftools annotate -Oz --rename-chrs chr_name_match.txt -o "${params.chromosomes.join(".")}_${full_vcf}"
-    bcftools index -t "${params.chromosomes.join(".")}_${full_vcf}"
+    # bcftools view -r "$chr_string" -Oz $full_vcf | bcftools annotate -Oz --rename-chrs chr_name_match.txt -o "${params.chromosomes.join(".")}_${full_vcf}"
+    bcftools view -r "$chr_string" -Oz $full_vcf | bcftools annotate -Oz --rename-chrs chr_name_match.txt -o "${params.chromosomes}_${full_vcf}"
+    # bcftools index -t "${params.chromosomes.join(".")}_${full_vcf}"
+    bcftools index -t "${params.chromosomes}_${full_vcf}"
     """
 }
 
@@ -106,12 +113,13 @@ workflow VARIANT_INPUT{
         downloaded_ref = getRef(input_ref, params.chromosomes)
 
         // Combine reference files into one file if necessary
-        if (params.chromosomes.size() > 1){
-            ref = combineRef(input_ref.collect())
-        }
-        else{
-            ref = downloaded_ref
-        }
+        // if (params.chromosomes.size() > 1){
+        //     ref = combineRef(input_ref.collect())
+        // }
+        // else{
+        //     ref = downloaded_ref
+        // }
+        ref = downloaded_ref
 
         // Download benchmark vcf set and index
         downloaded_vcf_idx = getVCF(input_vcf, input_vcf_idx)
@@ -121,7 +129,7 @@ workflow VARIANT_INPUT{
         subset_vcf = subsetVCF(downloaded_vcf_idx)
 
         // Create a consensus sequence for each 'individual'
-        ind_genome = getConsensus(subset_vcf.vcf, downloaded_ref.ref_path)
+        ind_genome = getConsensus(subset_vcf, downloaded_ref.ref_path)
         
     emit:
         ref

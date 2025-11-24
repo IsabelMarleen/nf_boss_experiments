@@ -1,18 +1,24 @@
 #!/usr/bin/env nextflow
 
+// Run using 'nextflow run boss_analyse.nf -with-conda -resume -c ../nextflow.config'
+
 params.exp_name = "benchmark_hg002_chr21"
 
 params.base_in_dir = "${params.base_out_dir}/${params.exp_name}"
-params.br_output = "${params.base_out_preprocess}/br_output"
+// params.br_output = "${params.base_out_preprocess}/br_output"
 
 
 params.log_file = "20250905-193019_boss.log"
 
-params.path = "${params.br_output}/boss_runs_out"
-params.reads = "${params.path}/${params.exp_name}/00_reads/"
-params.log = "${params.path}/${params.exp_name}/${params.log_file}"
-params.ref = "${params.base_out_dir}/${params.exp_name}/variant_input/Homo_sapiens.GRCh38.dna.chromosome.21.fa"
-params.script_path = "${projectDir}/scripts"
+// params.path = "${params.br_output}/boss_runs_out"
+// params.reads = "${params.path}/${params.exp_name}/00_reads/"
+params.reads = "/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/97/7fed3d495da0b6b53cde1208eb9d9c/00_reads/"
+params.log = "/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/97/7fed3d495da0b6b53cde1208eb9d9c/20251123-133405_boss.log"
+// params.log = "${params.path}/${params.exp_name}/${params.log_file}"
+// params.ref = "${params.base_out_dir}/${params.exp_name}/variant_input/Homo_sapiens.GRCh38.dna.chromosome.21.fa"
+params.ref = "/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/a0/c4632f88faa413f3b321fe0c40c1ce/Homo_sapiens.GRCh38.dna.chromosome.21.fa.gz"
+params.analyse_script_path = "${projectDir}/scripts"
+params.conda = "${params.conda_base_dir}"
 
 params.mu = 400
 params.dump_time = 35_000_000
@@ -28,21 +34,23 @@ params.output_dir_debug = "${params.base_out_dir}/debug"
 process indexPaf{
     clusterOptions '--mem=8G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:10:00'
     publishDir "${params.output_dir_debug}/index", mode: 'symlink'
-    conda "envs/simulation.yaml"
+    conda "${params.conda}/boss_simulation"
     input:
         file ref
     output:
-        path 'ref.mmi'
+        path 'ref.mmi', emit: ref_idx
+        path '*.fa', emit: ref_unzipped
     script:
         """
         minimap2 -d ref.mmi $ref
+        gunzip $ref -c > ${ref.getSimpleName()}.fa
         """
 }
 
 process mapPaf {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_debug}/map_paf", mode: 'symlink'
-    conda "envs/simulation.yaml"
+    conda "${params.conda}/boss_simulation"
     input:
         file input
         file index
@@ -58,14 +66,14 @@ process mapPaf {
 process separateTarget {
     clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
     publishDir "${params.output_dir_debug}/sep_target", mode: 'symlink'
-    conda "envs/simulation.yaml"
+    conda "${params.conda}/boss_simulation"
     input:
         tuple file(paf), file(reads)
     output:
         path '*.fq', emit: fq
     script:
     """
-    python3 ${params.script_path}/separate_by_target.py $paf $reads
+    python3 ${params.analyse_script_path}/separate_by_target.py $paf $reads
     """
 
 }
@@ -73,16 +81,17 @@ process separateTarget {
 process mapSam {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_debug}/map_sam", mode: 'symlink'
-    conda "envs/simulation.yaml"
+    conda "${params.conda}/boss_simulation"
     input:
         file reads
+        file unzipped_ref
     output:
         tuple(path('*.bam'), path('*.bam.bai'), emit: otu_mapped)
     script:
     def otu = "${(reads.getSimpleName() =~ /.+_(.+)/)[0][1]}"
     """
-    python3 ${params.script_path}/extract_sequence.py ${params.ref} "${otu}" > ${params.exp}_${otu}.fa &&
-    minimap2 -ax map-ont -t 32 --secondary=no --sam-hit-only -c ${params.exp}_${otu}.fa ${reads} |
+    python3 ${params.analyse_script_path}/extract_sequence.py ${unzipped_ref} "${otu}" > ${params.exp_name}_${otu}.fa &&
+    minimap2 -ax map-ont -t 32 --secondary=no --sam-hit-only -c ${params.exp_name}_${otu}.fa ${reads} |
     samtools sort -@ 32 | samtools view -b > ${reads.getSimpleName()}.bam &&
     samtools index -@ 32 ${reads.getSimpleName()}.bam
     """
@@ -91,7 +100,7 @@ process mapSam {
 process pileup {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_debug}/pileup", mode: 'symlink'
-    conda "envs/simulation.yaml"
+    conda "${params.conda}/boss_simulation"
     input:
         tuple path(bam), path(bai)
     output:
@@ -102,20 +111,21 @@ process pileup {
     def otu = "${(bam.getSimpleName() =~ /.+_(.+)/)[0][1]}"
     """
     samtools mpileup -Q 0 ${bam} > ${bam.getSimpleName()}.pup &&
-    python3 ${params.script_path}/process_pileup.py ${bam.getSimpleName()}.pup ${otu} ${bam.getSimpleName()}_full.csv > ${bam.getSimpleName()}.csv
+    python3 ${params.analyse_script_path}/process_pileup.py ${bam.getSimpleName()}.pup ${otu} ${bam.getSimpleName()}_full.csv > ${bam.getSimpleName()}.csv
     """
 }
 
 process recordUnblocks {
     clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
     publishDir "${params.output_dir_debug}/unblocks", mode: 'symlink'
+    conda "${params.conda}/boss_simulation"
     input:
         path fq
     output:
         path '*.csv', emit: csv
     script:
     """
-    python3 ${params.script_path}/record_unblocks.py $fq ${params.mu} > ${fq.getSimpleName()}_unblocks.csv
+    python3 ${params.analyse_script_path}/record_unblocks.py $fq ${params.mu} > ${fq.getSimpleName()}_unblocks.csv
     """
 }
 
@@ -143,7 +153,7 @@ process create_coverage_dataframe {
 
     script: 
     """
-    mkdir -p results/$params.exp &&
+    mkdir -p results/$params.exp_name &&
     cat <(echo cond,time,otu,mean_coverage,low_coverage_prop,evenness) $csv > coverage.csv
     """
 } 
@@ -152,7 +162,7 @@ process create_coverage_dataframe {
 process analyse_log {
     clusterOptions '--mem=8G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
     publishDir "${params.output_dir_debug}/results", mode: 'symlink'
-    conda "envs/simulation.yaml"
+    conda "${params.conda}/boss_simulation"
     input: 
         path log_file
     output: 
@@ -160,7 +170,7 @@ process analyse_log {
 
     script:
     """
-    python3 ${params.script_path}/analyse_boss_log.py $log_file ${log_file.getSimpleName()}_log_processed.csv
+    python3 ${params.analyse_script_path}/analyse_boss_log.py $log_file ${log_file.getSimpleName()}_log_processed.csv
     """
 }
 
@@ -168,7 +178,7 @@ process analyse_log {
 process visualise_simulation {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:20:00'
     publishDir "${params.output_dir_debug}/results", mode: 'copy'
-    conda "envs/visualisation.yaml"
+    conda "${params.conda}/boss_visualise"
     cache false
     input: 
         path coverage
@@ -181,7 +191,7 @@ process visualise_simulation {
     """
     #now=date +'%Y/%m/%d'
     mkdir -p ${params.output_dir_results} &&
-    Rscript ${params.script_path}/visualise_simulation.R \
+    Rscript ${params.analyse_script_path}/visualise_simulation.R \
     --input_cov ${coverage} \
     --input_unb ${unblocks} \
     --dump_time ${params.dump_time} \
@@ -190,6 +200,27 @@ process visualise_simulation {
     --output ${params.exp_name}_plots.pdf
     """
 }
+
+// // Convert to bam
+// process getBam {
+//     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=03:00:00'
+//     publishDir "${params.output_dir_br_output}", mode: 'symlink'
+//     conda "${params.conda}/boss4"
+//     input: 
+//         path fastq
+//     output: 
+//         path "*.bam", emit: bam
+
+//     script:
+//     """
+//     module load samtools
+//     minimap2 -x -a map-ont -t 32 --secondary=no -c $params.ref $fastq | \
+//     samtools fixmate -u -m - - | \
+//     samtools sort -u -@2 -T /tmp/example_prefix - | \
+//     samtools markdup -@8 --reference $params.ref -o ${fastq.getSimpleName()}.bam
+
+//     """
+// }
 
 process benchmark_variants {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:20:00'
@@ -223,7 +254,9 @@ workflow ANALYSE_BOSS{
             .set { input_reads_collection }
 
         // Index reference
-        ref_idx = indexPaf(ref_input)
+        processed_ref = indexPaf(ref_input)
+        ref_idx = processed_ref.ref_idx
+        ref_unzipped = processed_ref.ref_unzipped
 
         // Map paf
         first_map = mapPaf(input_reads, ref_idx.first())
@@ -240,7 +273,7 @@ workflow ANALYSE_BOSS{
         sep_target = separateTarget(first_map_tuple)
 
         // Map sam
-        mapped_sam = mapSam(sep_target)
+        mapped_sam = mapSam(sep_target, ref_unzipped)
 
         // Pileup
         pile = pileup(mapped_sam)
