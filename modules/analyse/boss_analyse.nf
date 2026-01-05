@@ -1,40 +1,14 @@
 #!/usr/bin/env nextflow
 
-// Run using 'nextflow run boss_analyse.nf -with-conda -resume -c ../nextflow.config'
-
-params.exp_name = "benchmark_hg002_chr21"
+// Run using 'nextflow run boss_analyse.nf -with-conda -resume'
+// Depends on a nextflow.config file that defines the parameters
 
 params.base_in_dir = "${params.base_out_dir}/${params.exp_name}"
-// params.br_output = "${params.base_out_preprocess}/br_output"
-
-
-params.log_file = "20250905-193019_boss.log"
-
-// params.path = "${params.br_output}/boss_runs_out"
-// params.reads = "${params.path}/${params.exp_name}/00_reads/"
-params.reads = "/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/97/7fed3d495da0b6b53cde1208eb9d9c/00_reads/"
-params.log = "/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/97/7fed3d495da0b6b53cde1208eb9d9c/20251123-133405_boss.log"
-// params.log = "${params.path}/${params.exp_name}/${params.log_file}"
-// params.ref = "${params.base_out_dir}/${params.exp_name}/variant_input/Homo_sapiens.GRCh38.dna.chromosome.21.fa"
-params.ref = "/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/a0/c4632f88faa413f3b321fe0c40c1ce/Homo_sapiens.GRCh38.dna.chromosome.21.fa.gz"
-params.analyse_script_path = "${projectDir}/scripts"
-params.conda = "${params.conda_base_dir}"
-
-params.mu = 400
-params.dump_time = 35_000_000
-params.pores = 512
-
-params.rtg_dir_path = "${params.software_dir}/rtg-tools-3.13/"
-
-params.base_out_dir = "${params.base_out_dir}/${params.exp_name}"
-params.output_dir_results = "${params.base_out_dir}/results"
-params.output_dir_debug = "${params.base_out_dir}/debug"
-
 
 process indexPaf{
     clusterOptions '--mem=8G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:10:00'
     publishDir "${params.output_dir_debug}/index", mode: 'symlink'
-    conda "${params.conda}/boss_simulation"
+    conda "${params.conda_envs}/simulation.yaml"
     input:
         file ref
     output:
@@ -48,9 +22,10 @@ process indexPaf{
 }
 
 process mapPaf {
+    tag "${input.getSimpleName()}"
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_debug}/map_paf", mode: 'symlink'
-    conda "${params.conda}/boss_simulation"
+    conda "${params.conda_envs}/simulation.yaml"
     input:
         file input
         file index
@@ -64,9 +39,10 @@ process mapPaf {
 }
 
 process separateTarget {
-    clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
+    tag "${paf.getSimpleName()}"
+    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:10:00'
     publishDir "${params.output_dir_debug}/sep_target", mode: 'symlink'
-    conda "${params.conda}/boss_simulation"
+    conda "${params.conda_envs}/simulation.yaml"
     input:
         tuple file(paf), file(reads)
     output:
@@ -79,9 +55,10 @@ process separateTarget {
 }
 
 process mapSam {
+    tag "${reads.getSimpleName()}"
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_debug}/map_sam", mode: 'symlink'
-    conda "${params.conda}/boss_simulation"
+    conda "${params.conda_envs}/simulation.yaml"
     input:
         file reads
         file unzipped_ref
@@ -98,9 +75,10 @@ process mapSam {
 }
 
 process pileup {
+    tag "${bam.getSimpleName()}"
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
     publishDir "${params.output_dir_debug}/pileup", mode: 'symlink'
-    conda "${params.conda}/boss_simulation"
+    conda "${params.conda_envs}/simulation.yaml"
     input:
         tuple path(bam), path(bai)
     output:
@@ -116,9 +94,10 @@ process pileup {
 }
 
 process recordUnblocks {
+    tag "${fq.getSimpleName()}"
     clusterOptions '--mem=2G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
     publishDir "${params.output_dir_debug}/unblocks", mode: 'symlink'
-    conda "${params.conda}/boss_simulation"
+    conda "${params.conda_envs}/simulation.yaml"
     input:
         path fq
     output:
@@ -162,7 +141,7 @@ process create_coverage_dataframe {
 process analyse_log {
     clusterOptions '--mem=8G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
     publishDir "${params.output_dir_debug}/results", mode: 'symlink'
-    conda "${params.conda}/boss_simulation"
+    conda "${params.conda_envs}/simulation.yaml"
     input: 
         path log_file
     output: 
@@ -178,7 +157,7 @@ process analyse_log {
 process visualise_simulation {
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:20:00'
     publishDir "${params.output_dir_debug}/results", mode: 'copy'
-    conda "${params.conda}/boss_visualise"
+    conda "${params.conda_envs}/visualisation.yaml"
     cache false
     input: 
         path coverage
@@ -201,33 +180,13 @@ process visualise_simulation {
     """
 }
 
-// // Convert to bam
-// process getBam {
-//     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=03:00:00'
-//     publishDir "${params.output_dir_br_output}", mode: 'symlink'
-//     conda "${params.conda}/boss4"
-//     input: 
-//         path fastq
-//     output: 
-//         path "*.bam", emit: bam
-
-//     script:
-//     """
-//     module load samtools
-//     minimap2 -x -a map-ont -t 32 --secondary=no -c $params.ref $fastq | \
-//     samtools fixmate -u -m - - | \
-//     samtools sort -u -@2 -T /tmp/example_prefix - | \
-//     samtools markdup -@8 --reference $params.ref -o ${fastq.getSimpleName()}.bam
-
-//     """
-// }
-
 process benchmark_variants {
+    tag "${test_vcf.getSimpleName()}"
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:20:00'
     publishDir "${params.output_dir_debug}/results", mode: 'symlink'
     input:
-        path ground_truth_vcf
-        path test_vcf
+        tuple path(ground_truth_vcf), path(ground_truth_vcf_idx)
+        tuple path(test_vcf), path(test_vcf_idx)
         path ref
 
     output:
@@ -236,10 +195,38 @@ process benchmark_variants {
 
     script:
     """
-    ".${params.rtg_dir_path}/rtg" format -o "${ref.getSimplename()}.sdf" ${ref}
-    ".${params.rtg_dir_path}/rtg" vcfeval -b ${ground_truth_vcf} -c ${test_vcf} -t "${ref.getSimplename()}.sdf" -o "vcf_benchmark_${test_vcf.getsimpleName()}"
+    "${params.rtg_dir_path}/rtg" format -o "${ref.getSimpleName()}.sdf" ${ref}
+    "${params.rtg_dir_path}/rtg" vcfeval -b ${ground_truth_vcf} -c ${test_vcf} -t "${ref.getSimpleName()}.sdf" -o "vcf_benchmark_${test_vcf.getSimpleName()}"
     """
 }
+
+// process plot_rocs {
+//     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:20:00'
+//     publishDir "${params.output_dir_results}", mode: 'symlink'
+//     input:
+//         path weighted_roc
+
+//     output:
+//         path "*.svg"
+
+//     script:
+//     def otu = "${(bam.getSimpleName() =~ /.+_(.+)/)[0][1]}"
+//     def curve_str = weighted_roc{"--curve" + it +"="}.join(" ")
+//         chr_name_match = params.chromosomes.collect{"chr" + it + "="}.join("\n")
+//         chr_prefix = params.chromosomes.join("_")
+//     """
+//     "${params.rtg_dir_path}/rtg" rocplot -b ${ground_truth_vcf} -c ${test_vcf} -t "${ref.getSimpleName()}.sdf" -o "vcf_benchmark_${test_vcf.getSimpleName()} --"
+//     ${params.rtg_dir_path}/rtg-tools-3.13/rtg rocplot \
+//     --curve /hps/nobackup/goldman/ipoetzsch/boss_sequence/work/ce/5a858c7aaa6f2b498b63e97fe69da8/vcf_benchmark_control_33_hg002_chr21/weighted_roc.tsv.gz=control_33,cov=20x \
+//     --curve /hps/nobackup/goldman/ipoetzsch/boss_sequence/work/b3/436a080c2865ad6211551fd1b18aa2/vcf_benchmark_boss_88_hg002_chr21/weighted_roc.tsv.gz=boss_88,cov=20x \
+//     --curve /hps/nobackup/goldman/ipoetzsch/boss_sequence/work/f3/0f20a00ee105a15632b9d9b91fcffd/vcf_benchmark_control_88_hg002_chr21/weighted_roc.tsv.gz=control_88,cov=55x \
+//     --curve /hps/nobackup/goldman/ipoetzsch/boss_sequence/work/76/d64893288437cb2e2a171bf0fa056e/vcf_benchmark_control_289_hg002_chr21/weighted_roc.tsv.gz=control_289,cov=180x \
+//     --palette=blind_8 \
+//     --svg=${title} \
+//     --plain
+//     """
+// }
+
 
 workflow ANALYSE_BOSS{
     take:
@@ -273,7 +260,7 @@ workflow ANALYSE_BOSS{
         sep_target = separateTarget(first_map_tuple)
 
         // Map sam
-        mapped_sam = mapSam(sep_target, ref_unzipped)
+        mapped_sam = mapSam(sep_target, ref_unzipped.first())
 
         // Pileup
         pile = pileup(mapped_sam)
@@ -307,6 +294,30 @@ workflow BENCHMARK_VCF {
     main:
         benchmark_variants(ground_truth_vcf, test_vcf, ref)
     
+}
+
+workflow benchmark {
+    // Test_vcf
+    test_vcf = channel.fromPath( "${params.test_vcf_base}" )
+    test_vcf
+        .map { tuple( it.simpleName, it ) }
+        .groupTuple()
+        .set { test_vcf_collection }
+
+    channel.fromPath( "${params.test_vcf_base_idx}" )
+        .map { tuple( it.simpleName, it ) }
+        .combine( test_vcf_collection, by: 0 )
+        .transpose( by: 2 )
+        .map { _tmp, idx, vcf -> tuple( vcf, idx ) }
+        .set{test_vcf_tuple}
+
+    // Sequence log
+    ground_truth_vcf = channel.of(tuple("${params.ground_truth}", "${params.ground_truth_idx}"))
+    // Index reference
+    ref = channel.fromPath("${params.ref}")
+    vars = benchmark_variants(ground_truth_vcf.first(), test_vcf_tuple, ref.first())
+    
+
 }
 
 workflow  {
