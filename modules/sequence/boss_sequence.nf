@@ -2,18 +2,8 @@
 
 // Run using 'nextflow run boss_sequence.nf -entry SEQUENCE_BOSS -with-conda -resume -c ../nextflow.config'
 /*
- * Pipeline parameters
+ * Pipeline parameters in nextflow.config
  */
-params.exp_name = "benchmark_hg002_chr21"
-
-params.abspath_to_boss_runs_repo = "${params.software_dir}/BOSS-RUNS2"
-
-params.base_in_dir = "${params.base_out_dir}/${params.exp_name}"
-params.seq_br_output = "${params.base_in_dir}/sequence/br_output"
-
-params.br_input = "${params.base_in_dir}/preprocess/br_input"
-// params.toml = "${params.br_input}/static_benchmark_hg002_chr21.toml"
-params.toml = "/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/a0/c4632f88faa413f3b321fe0c40c1ce/benchmark_hg002_chr21.toml"
 
 
 // Run br sim
@@ -53,11 +43,29 @@ process TimeProfilerunBRSim {
 
     script:
     """
-    PROFILE_RUN=True
+    export PROFILE_RUN=True
     python -m cProfile -o "${params.exp_name}_cprofile" -m boss.BOSS --toml ${toml} > "${params.exp_name}_cprofile.stdout"
     """
 }
 
+process MemProfilerunBRSim {
+    clusterOptions '--mem=64G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=12:00:00'
+    publishDir "${params.seq_br_output}", mode: 'symlink'
+    conda "${params.conda_base_dir}/boss_profile"
+    input: 
+        path toml
+    output: 
+        path("out_*"), emit: dir
+        path("00_reads"), emit: reads_dir
+        path("*_boss.log"), emit: log
+        path "*.bin", emit: memprofile
+
+    script:
+    """
+    export PROFILE_RUN=True
+    memray run -m boss.BOSS --toml ${toml}
+    """
+}
 
 workflow SEQUENCE_BOSS{
     take:
@@ -75,6 +83,7 @@ workflow SEQUENCE_PROFILE_BOSS{
         input_toml
     main:
         seq = TimeProfilerunBRSim(input_toml)
+        MemProfilerunBRSim(input_toml)
     emit:
         dir = seq.dir
         reads_dir = seq.reads_dir
@@ -86,6 +95,5 @@ workflow SEQUENCE_PROFILE_BOSS{
 
 workflow  {
     input_toml = channel.of(params.toml)
-    // TimeProfilerunBRSim(input_toml)
     SEQUENCE_PROFILE_BOSS(input_toml)
 }
