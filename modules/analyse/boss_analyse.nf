@@ -252,7 +252,7 @@ workflow ANALYSE_BOSS{
                 .map { tuple( it.simpleName, it ) }
                 .combine( input_reads_collection, by: 0 )
                 .transpose( by: 2 )
-                .map { case_id, paf, fa -> tuple( paf, fa ) }
+                .map { _case_id, paf, fa -> tuple( paf, fa ) }
                 .set{first_map_tuple}
                 
 
@@ -317,7 +317,8 @@ workflow benchmark {
     ref = channel.fromPath("${params.ref}")
     vars = benchmark_variants(ground_truth_vcf.first(), test_vcf_tuple, ref.first())
     
-
+    emit:
+        variants = vars
 }
 
 workflow  {
