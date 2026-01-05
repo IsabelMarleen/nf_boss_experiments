@@ -3,29 +3,8 @@
 // Run using 'nextflow run boss_preprocess.nf -entry PREPROCESS_BOSS -with-conda -resume -c ../nextflow.config'
 
 /*
- * Pipeline parameters
+ * Pipeline parameters in ../nextflow.config
  */
-params.exp_name = "benchmark_hg002_chr21"
-
-// params.input_base_dir -- defined in nextflow.config
-params.genome = "${params.base_input_dir}/${params.exp_name}/variant_input/consensus_21_HG002_GRCh38_1_22_v4.2.1_benchmark.fa"
-params.ref = "${params.base_input_dir}/${params.exp_name}/variant_input/Homo_sapiens.GRCh38.dna.chromosome.21.fa"
-
-params.abs_path_to_nanosim_repo = "${params.software_dir}/NanoSim"
-params.model = "${params.abs_path_to_nanosim_repo}/pre-trained_models/human_giab_hg002_sub1M_kitv14_dorado_v3.2.1/training"
-params.readnumber = 1000000
-
-params.abspath_to_boss_runs_repo = "${params.software_dir}/BOSS-RUNS2"
-params.mu = 400
-params.dump_time = 35000000
-params.accept_unmapped = "true"
-
-params.base_out_preprocess = "${params.base_out_dir}/${params.exp_name}"
-params.output_dir_nanosim = "${params.base_out_preprocess}/nanosim_out"
-params.output_dir_br_input = "${params.base_out_preprocess}/br_input"
-params.output_dir_br_output = "${params.base_out_preprocess}/br_output"
-
-params.script_path = "${projectDir}/scripts"
 
 process simNanofastq { 
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
@@ -168,7 +147,7 @@ process writeToml {
         path("*.toml")
 
     script:
-    maxb = params.readnumber*0.6/1000 as Integer
+    maxb = params.readnumber*0.6/params.batch_size as Integer
     """
     echo "[general]
 name = '"${params.exp_name}"'                   # experiment name
@@ -180,7 +159,7 @@ fq = '"\$PWD/${full_fq}"'                   # fastq file
 paf_full = '"\$PWD/${full_paf}"'     # full mapping paf file
 paf_trunc = '"\$PWD/${trunc_paf}"'            # truncated mapping paf file
 maxb = $maxb                  # maximum number of batches
-batchsize = 1000 # How many reads are processed at once
+batchsize = $params.batch_size # How many reads are processed at once
 binit = 10
 dumptime = ${params.dump_time} # how much pseudotimes needs to be surpassed to write to file -- adjusted to better match 35 Mio. from before pseudotime adjustment
 accept_unmapped = ${params.accept_unmapped}" > "${params.exp_name}.toml"
