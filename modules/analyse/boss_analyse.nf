@@ -315,10 +315,7 @@ workflow benchmark {
     ground_truth_vcf = channel.of(tuple("${params.ground_truth}", "${params.ground_truth_idx}"))
     // Index reference
     ref = channel.fromPath("${params.ref}")
-    vars = benchmark_variants(ground_truth_vcf.first(), test_vcf_tuple, ref.first())
-    
-    emit:
-        variants = vars
+    benchmark_variants(ground_truth_vcf.first(), test_vcf_tuple, ref.first())
 }
 
 workflow  {
