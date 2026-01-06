@@ -4,7 +4,6 @@
 .nextflow.log*
 .nextflow/
 nextflow.config
-nf-params.json
 
 # File to keep some notes
 notes.txt
