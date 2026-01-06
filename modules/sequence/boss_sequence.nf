@@ -15,7 +15,7 @@ process runBRSim {
         path toml
     output: 
         path("out_*"), emit: dir
-        path("00_reads"), emit: reads_dir
+        path("*.fa"), emit: reads_dir
         path("*_boss.log"), emit: log
 
     script:
@@ -32,14 +32,10 @@ process TimeProfilerunBRSim {
         path toml
     output: 
         path("out_*"), emit: dir
-        path("00_reads"), emit: reads_dir
+        path("*.fa"), emit: reads_dir
         path("*_boss.log"), emit: log
         path "*_cprofile", emit: cprofile
         path "*_cprofile.stdout", emit: cprofile_stdout
-        // path("profile_output.txt"), emit:profile_output
-        // path "profile_output_*.txt", emit:profile_time
-        // path "profile_output.lprof", emit:profile_lprof
-        // path "l_profiler.stdout", emit:stdout
 
     script:
     """
@@ -56,14 +52,14 @@ process MemProfilerunBRSim {
         path toml
     output: 
         path("out_*"), emit: dir
-        path("00_reads"), emit: reads_dir
+        path("*.fa"), emit: reads_dir
         path("*_boss.log"), emit: log
         path "*.bin", emit: memprofile
 
     script:
     """
     export PROFILE_RUN=True
-    memray run -m boss.BOSS --toml ${toml}
+    memray run --follow-fork --aggregate -m boss.BOSS --toml ${toml}
     """
 }
 
