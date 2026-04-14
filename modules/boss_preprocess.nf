@@ -10,7 +10,7 @@ params.script_path = "/hps/software/users/goldman/ipoetzsch/nf_boss_experiments/
 process simNanofastq { 
     clusterOptions '--nodes=1 --cpus-per-task=32 --ntasks=1' //--mem=32G  --time=00:30:00
     memory { 32.GB * params.chromosomes.size() * task.attempt }
-    time { 30.m * params.chromosomes.size() * task.attempt }
+    time { 1.h * params.chromosomes.size() * task.attempt }
     publishDir (
         path: "${params.output_dir_nanosim}", 
         mode: 'symlink',
@@ -40,7 +40,7 @@ process simNanofastq {
 } 
 
 process addBarcodes{
-    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:20:00'
+    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=8 --ntasks=1 --time=00:20:00'
     publishDir(
         path: "${params.output_dir_br_input}", 
         mode: 'symlink'
@@ -60,7 +60,11 @@ process addBarcodes{
 }
 
 process combineBarcodedFq{
-    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:20:00'
+    clusterOptions '--nodes=1 --cpus-per-task=8 --ntasks=1'
+    memory { 64.GB * params.readnumber.values().size() * task.attempt }
+    time { 20.min * params.readnumber.values().size() * task.attempt }
+    maxRetries 3
+    errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
     publishDir(
         path: "${params.output_dir_br_input}", 
         mode: 'symlink'
@@ -85,7 +89,9 @@ process combineBarcodedFq{
 
 // Truncate fq Step 1 of prepare input for BRsim
 process truncateFq {
-    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:20:00'
+    clusterOptions '--nodes=1 --cpus-per-task=8 --ntasks=1'
+    memory { 32.GB * params.readnumber.values().size() * task.attempt }
+    time { 40.min * params.readnumber.values().size() * task.attempt }
     publishDir(
         path: "${params.output_dir_br_input}", 
         mode: 'symlink',        
@@ -114,18 +120,22 @@ process scan_offsetsFq {
     conda "${params.conda_base_dir}/boss2"
     input: 
         path aligned_fastq
+        path sampler_func_file, stageAs: 'sampler.py'
+
     output: 
         path "*.offsets.npy", emit: fq_offsets
 
     script:
     """
-    ${params.script_path}/scan_offsets_fq_nf.py $aligned_fastq
+    scan_offsets_fq_nf.py $aligned_fastq
     """
 }
 
 // Map paf Step 3 of prepare input for BRsim
 process mapPaf {
-    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
+    clusterOptions '--nodes=1 --cpus-per-task=32 --ntasks=1'
+    memory { 32.GB * params.readnumber.values().size() * params.chromosomes.size() * task.attempt }
+    time {20.min * params.readnumber.values().size() * params.chromosomes.size() * task.attempt}
     publishDir "${params.output_dir_br_input}", mode: 'symlink'
     conda "${params.conda_base_dir}/boss2"
     input: 
@@ -143,7 +153,8 @@ process mapPaf {
 
 // Map paf trunc Step 4 of prepare input for BRsim
 process mapPaf_trunc {
-    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
+    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1'
+    time {30.min * params.readnumber.values().size() * params.chromosomes.size() * task.attempt}
     publishDir "${params.output_dir_br_input}", mode: 'symlink'
     conda "${params.conda_base_dir}/boss2"
     input: 
@@ -175,7 +186,7 @@ process scan_offsets_Paf {
 
     script:
     """
-    ${params.script_path}/scan_offsets_paf_nf.py ${mappings} ${mappings_trunc}
+    scan_offsets_paf_nf.py ${mappings} ${mappings_trunc}
     """
 }
 
@@ -263,8 +274,9 @@ workflow PREPROCESS_BOSS{
         trunc_fq = truncateFq(aligned_fastq)
 
         // Scan fq offsets Step 2 of prepare input for BRsim
+        boss_sampler = Channel.fromPath(params.abs_path_to_boss_repo+"/sampler.py")
         fq_combined = trunc_fq.full_fq.mix(trunc_fq.trunc_fq)
-        fq_offsets = scan_offsetsFq(fq_combined)
+        fq_offsets = scan_offsetsFq(fq_combined, boss_sampler)
         // TODO: Combine input genomes into one file using cat
 
         // Map paf Step 3 of prepare input for BRsim
@@ -285,10 +297,6 @@ workflow PREPROCESS_BOSS{
         toml
 }
 
-// TODO: For barcoded data/several people, add another workflow, 
-// where I repeat nanosim for each person and add another step that adds a barcode to each header
-// Then I might need to combine (and shuffle -- might be able to do that in the scan_offsets_fq step??) 
-// the resulting fastq files before they go into sequence mode
 
 workflow PREPROCESS_From_seq{
     take:
@@ -300,8 +308,9 @@ workflow PREPROCESS_From_seq{
         trunc_fq = truncateFq(full_fq)
 
         // Scan fq offsets Step 2 of prepare input for BRsim
+        boss_sampler = Channel.fromPath(params.abs_path_to_boss_repo+"/sampler.py")
         fq_combined = full_fq.mix(trunc_fq.trunc_fq)
-        fq_offsets = scan_offsetsFq(fq_combined)
+        fq_offsets = scan_offsetsFq(fq_combined, boss_sampler)
 
         // Map paf Step 3 of prepare input for BRsim
         mpaf = mapPaf(full_fq, ref)
@@ -341,8 +350,8 @@ workflow  PREPROCESS_WITH_SEQ{
 
 workflow  {
     // Download reference file(s) for each chromosome and benchmark vcfs + index 
-    reference = Channel.fromPath("/hps/software/users/goldman/ipoetzsch/BOSS-RUNS2/data/zymo.fa")
-    full_fq = Channel.fromPath("/hps/software/users/goldman/ipoetzsch/boss_exp/barcoded_input_data/FAT91932_pass_e7bf7751_f43c451e_4_bc.fastq")
+    reference = Channel.fromPath("${params.abs_path_to_boss_repo}/data/zymo.fa")
+    full_fq = Channel.fromPath("${params.software_dir}/boss_exp/barcoded_input_data/FAT91932_pass_e7bf7751_f43c451e_4_bc.fastq")
 
     PREPROCESS_From_seq(full_fq, reference)
 }

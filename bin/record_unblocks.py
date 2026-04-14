@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 from readfq import readfq
 
@@ -17,7 +19,10 @@ def process_fq(fq: str, mu: int) -> str:
     '''
     # get metadata from the filename
     meta = fq.split("/")[-1].split(".")[0].split('_')
-    cond, time, otu = meta[0], meta[1], meta[2]
+    if len(meta) > 3:
+        cond, time, bc, otu = meta[0], meta[1], meta[2], meta[3]
+    else:
+        cond, time, otu = meta[0], meta[1], meta[2]
     total = 0
     unb = 0
     base_total = 0
@@ -36,7 +41,10 @@ def process_fq(fq: str, mu: int) -> str:
     except ZeroDivisionError:
         unb_ratio = 0
     # format the results
-    output = f'{cond},{time},{otu},{total},{base_total},{unb},{unb_ratio}'
+    if len(meta) > 3:
+        output = f'{cond},{time},{otu},{bc},{total},{base_total},{unb},{unb_ratio}'
+    else:
+        output = f'{cond},{time},{otu},{total},{base_total},{unb},{unb_ratio}'
     return output
 
 

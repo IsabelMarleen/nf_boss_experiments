@@ -1,12 +1,15 @@
+#!/usr/bin/env python
+
 import sys
 sys.path.insert(0,"/")
 sys.path.insert(0,"../")
+sys.path.insert(0,".")
 sys.path.insert(0,"/hps/software/users/goldman/ipoetzsch/BOSS-RUNS2/")
 from boss.sampler import FastqStream_mmap
 
 
 def scan_fq_offsets(fq_file):
-    FastqStream_mmap(source=str(fq_file))
+    FastqStream_mmap(source=str(fq_file), shuffle=True)
 
 
 if __name__ == "__main__":

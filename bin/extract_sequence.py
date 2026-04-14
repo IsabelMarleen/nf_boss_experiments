@@ -1,9 +1,11 @@
+#!/usr/bin/env python
+
 import sys
 from os import path
 PARENT_DIR = path.dirname(path.dirname(path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
-
-from config.otu_info import otus_no_plasmids
+sys.path.append('.')
+from otu_info import otus_no_plasmids
 
 
 def extract_sequence(fasta_file: str, header: str) -> str:

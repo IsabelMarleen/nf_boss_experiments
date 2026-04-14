@@ -8,4 +8,5 @@ dependencies:
 - r-dplyr=1.1.4
 - r-argparse=2.2.5
 - r-stringr=1.5.1
+- r-tidyr=1.3.2
 

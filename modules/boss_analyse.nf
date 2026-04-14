@@ -4,11 +4,10 @@
 // Depends on a nextflow.config file that defines the parameters
 
 params.base_in_dir = "${params.base_out_dir}/${params.exp_name}"
-// params.script_dir = "${projectDir}/../bin"
+params.script_dir = "${projectDir}/../bin"
 
 process indexPaf{
     clusterOptions '--mem=8G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:10:00'
-    publishDir "${params.output_dir_debug}/index", mode: 'symlink'
     conda "${params.conda_envs}/simulation.yaml"
     input:
         file ref
@@ -43,7 +42,6 @@ genome_sizes = $fixed_otu_genome_sizes" > otu_info.py
 process mapPaf {
     tag "${input.getSimpleName()}"
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
-    publishDir "${params.output_dir_debug}/map_paf", mode: 'symlink'
     conda "${params.conda_envs}/simulation.yaml"
     input:
         file input
@@ -60,7 +58,6 @@ process mapPaf {
 process separateTarget {
     tag "${paf.getSimpleName()}"
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:10:00'
-    publishDir "${params.output_dir_debug}/sep_target", mode: 'symlink'
     conda "${params.conda_envs}/simulation.yaml"
     input:
         tuple file(paf), file(reads)
@@ -77,7 +74,6 @@ process separateTarget {
 process mapSam {
     tag "${reads.getSimpleName()}"
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
-    publishDir "${params.output_dir_debug}/map_sam", mode: 'symlink'
     conda "${params.conda_envs}/simulation.yaml"
     input:
         file reads
@@ -96,29 +92,65 @@ process mapSam {
 }
 
 process pileup {
-    tag "${bam.getSimpleName()}"
-    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
-    publishDir "${params.output_dir_debug}/pileup", mode: 'symlink'
+    debug true
+    tag "${meta.join("_")}"
+    clusterOptions '--nodes=1 --cpus-per-task=32 --ntasks=1'
+    memory { 1.5.GB * bam.size() * task.attempt }
+    time {1.min * bam.size() * task.attempt}
+    maxRetries 3
     conda "${params.conda_envs}/simulation.yaml"
+    errorStrategy { task.exitStatus == 140 ? 'retry' : 'terminate' }
     input:
-        tuple path(bam), path(bai)
+        tuple val(meta), path(bam)
+        tuple val(meta2), path(bai)
         file otu_file
     output: 
-        path '*.pup', emit: pup
-        path "${bam.getSimpleName()}.csv", emit:csv
-        path '*_full.csv'
+        // path '*.pup', emit: pup
+        // path "${bam.getSimpleName()}.csv", emit:csv
+        path 'tmp.csv', emit: pup
+        path "${meta.join("_")}.csv", emit: csv
     script:
-    def otu = "${(bam.getSimpleName() =~ /.+_(.+)/)[0][1]}"
+    if (params.barcodes == null){
+        otu = meta.get(1)
+        assert otu == meta2.get(1)
+    }
+    else{
+        otu = meta.get(2)
+        assert otu == meta2.get(2)
+    }
     """
-    samtools mpileup -Q 0 ${bam} > ${bam.getSimpleName()}.pup &&
-    ${params.script_dir}process_pileup.py ${bam.getSimpleName()}.pup ${otu} ${bam.getSimpleName()}_full.csv > ${bam.getSimpleName()}.csv
+    samtools mpileup -Q 0 ${bam} > ${meta.join("_")}.pup &&
+    ${params.script_dir}process_pileup.py ${meta.join("_")}.pup $otu ${meta.join("_")}.csv ${bam.size()}
     """
 }
+
+// process pileup_2 {
+//     debug true
+//     tag "${meta.join("_")}"
+//     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
+//     publishDir "${params.output_dir_debug}/pileup", mode: 'symlink'
+//     conda "${params.conda_envs}/simulation.yaml"
+//     input:
+//         tuple val(meta), path(full)
+//         file otu_file
+//     output: 
+//         path "${meta.join("_")}.csv", emit:csv
+//     script:
+//     if (params.barcodes == null){
+//         otu = meta.get(1)
+//     }
+//     else{
+//         otu = meta.get(2)
+//     }
+//      // "${(full.getSimpleName() =~ /.+_(.+)/)[0][1]}"
+//     """
+//     ${params.script_dir}complete_pileup.py ${otu} ${full} > ${meta.join("_")}.csv
+//     """
+// }
 
 process recordUnblocks {
     tag "${fq.getSimpleName()}"
     clusterOptions '--mem=24G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:10:00'
-    publishDir "${params.output_dir_debug}/unblocks", mode: 'symlink'
     conda "${params.conda_envs}/simulation.yaml"
     input:
         path fq
@@ -215,6 +247,22 @@ process visualise_simulation {
     """
 }
 
+process visualise_time {
+    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:20:00'
+    publishDir "${params.output_dir_debug}/results", mode: 'symlink'
+    conda "${params.conda_base_dir}/boss_profile"
+    input:
+        path time_profile
+
+    output:
+        path "*.png"
+
+    script:
+    """
+    gprof2dot -f pstats ${time_profile} | dot -Tpng -o ${time_profile.getSimpleName()}_dot.png
+    """
+}
+
 process benchmark_variants {
     tag "${test_vcf.getSimpleName()}"
     clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:20:00'
@@ -299,8 +347,43 @@ workflow ANALYSE_BOSS{
         // Map sam
         mapped_sam = mapSam(sep_target.flatten(), ref_unzipped.first(), otu.first())
 
+        // If barcoded experiment, add barcode info to each fq and combine
+        if (params.barcodes != null){
+            pile_bam = mapped_sam
+                .filter { it[0].simpleName.split('_')[1] != "0" }
+                .toSortedList{it -> it[0].simpleName.split('_')[1].toInteger()}
+                .flatMap()
+                .map{tuple(it[0].simpleName.split('_')[0,2,3], it[0])}
+                .groupTuple()
+
+            pile_bai = mapped_sam
+                .filter { it[0].simpleName.split('_')[1] != "0" }
+                .toSortedList{it -> it[0].simpleName.split('_')[1].toInteger()}
+                .flatMap()
+                .map{tuple(it[0].simpleName.split('_')[0,2,3], it[1])}
+                .groupTuple()
+        }
+        else{
+            pile_bam = mapped_sam
+                .filter { it[0].simpleName.split('_')[1] != "0" }
+                .toSortedList{it -> it[0].simpleName.split('_')[1].toInteger()}
+                .flatMap()
+                .map{tuple(it[0].simpleName.split('_')[0,2], it[0])}
+                .groupTuple()   
+            pile_bai = mapped_sam
+                .filter { it[0].simpleName.split('_')[1] != "0" }
+                .toSortedList{it -> it[0].simpleName.split('_')[1].toInteger()}
+                .flatMap()
+                .map{tuple(it[0].simpleName.split('_')[0,2], it[1])}
+                .groupTuple()  
+        }
         // Pileup
-        pile = pileup(mapped_sam, otu.first())
+        pile = pileup(pile_bam, pile_bai, otu.first())
+
+
+        
+
+        // pile_csv = pileup_2(pile_full, otu.first())
 
         // Record unblocks
         unblocks_ind = recordUnblocks(sep_target.flatten())

@@ -25,7 +25,9 @@ process runBRSim {
 }
 
 process TimeProfilerunBRSim {
-    clusterOptions '--mem=64G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=12:00:00'
+    clusterOptions '--nodes=1 --cpus-per-task=32 --ntasks=1'
+    memory { 64.GB * params.readnumber.values().size() * params.chromosomes.size() * task.attempt }
+    time {6.h * params.readnumber.values().size() * params.chromosomes.size() * task.attempt}
     publishDir "${params.seq_br_output}", mode: 'symlink'
     conda "${params.conda_base_dir}/boss_profile"
     input: 
@@ -45,7 +47,9 @@ process TimeProfilerunBRSim {
 }
 
 process MemProfilerunBRSim {
-    clusterOptions '--mem=64G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=12:00:00'
+    clusterOptions '--nodes=1 --cpus-per-task=32 --ntasks=1'
+    memory { 64.GB * params.readnumber.values().size() * params.chromosomes.size() * task.attempt }
+    time {6.h * params.readnumber.values().size() * params.chromosomes.size() * task.attempt}
     publishDir "${params.seq_br_output}", mode: 'symlink'
     conda "${params.conda_base_dir}/boss_profile"
     input: 
