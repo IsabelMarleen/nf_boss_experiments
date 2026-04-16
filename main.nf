@@ -5,10 +5,11 @@
  */
 
 
-include {VARIANT_INPUT} from './modules/boss_variant_input.nf'
-include {PREPROCESS_BOSS} from './modules/boss_preprocess.nf'
-include {SEQUENCE_BOSS;SEQUENCE_PROFILE_BOSS} from './modules/boss_sequence.nf'
-include {ANALYSE_BOSS;BENCHMARK_VCF} from './modules/boss_analyse.nf'
+include {VARIANT_INPUT} from './workflows/boss_variant_input.nf'
+include {SIMULATE_FRAGMENTS_BOSS} from './workflows/boss_simulate_fragments.nf'
+include {PREPROCESS_BOSS} from './workflows/boss_preprocess.nf'
+include {SEQUENCE_BOSS;SEQUENCE_PROFILE_BOSS} from './workflows/boss_sequence.nf'
+include {ANALYSE_BOSS} from './workflows/boss_analyse.nf'
 
 workflow  {
     // Get genome with variants from benchmark vcf set
@@ -22,7 +23,10 @@ workflow  {
     ind_genome = var_output.ind_genome
 
     // Preprocess genome for sequence simulation
-    preprocessed = PREPROCESS_BOSS(ind_genome, ref_genome)
+    sim_fragments = SIMULATE_FRAGMENTS_BOSS(ind_genome)
+
+    // Preprocess genome for sequence simulation
+    preprocessed = PREPROCESS_BOSS(sim_fragments, ref_genome)
 
     // Run sequence simulation
     sequenced = SEQUENCE_PROFILE_BOSS(preprocessed)
