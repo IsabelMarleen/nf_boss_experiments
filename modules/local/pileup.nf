@@ -6,14 +6,13 @@ process pileup {
     time {1.min * bam.size() * task.attempt}
     maxRetries 3
     conda "${params.conda_envs}/simulation.yaml"
+    container "https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/b6/b62d54a49751d6761d41b48f7b81b8450190946068bfef21d83a165fd48e4c54/data"
     errorStrategy { task.exitStatus == 140 ? 'retry' : 'terminate' }
     input:
         tuple val(meta), path(bam)
         tuple val(meta2), path(bai)
         file otu_file
     output: 
-        // path '*.pup', emit: pup
-        // path "${bam.getSimpleName()}.csv", emit:csv
         path 'tmp.csv', emit: pup
         path "${meta.join("_")}.csv", emit: csv
     script:
@@ -27,6 +26,6 @@ process pileup {
     }
     """
     samtools mpileup -Q 0 ${bam} > ${meta.join("_")}.pup &&
-    ${params.script_dir}process_pileup.py ${meta.join("_")}.pup $otu ${meta.join("_")}.csv ${bam.size()}
+    process_pileup.py ${meta.join("_")}.pup $otu ${meta.join("_")}.csv ${bam.size()}
     """
 }

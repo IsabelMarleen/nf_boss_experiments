@@ -4,7 +4,6 @@ import sys
 sys.path.insert(0,"/")
 sys.path.insert(0,"../")
 sys.path.insert(0,".")
-sys.path.insert(0,"/hps/software/users/goldman/ipoetzsch/BOSS-RUNS2/")
 from boss.sampler import FastqStream_mmap
 
 

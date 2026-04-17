@@ -9,8 +9,6 @@ from os import path
 PARENT_DIR = path.dirname(path.dirname(path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
 sys.path.append('.')
-sys.path.append('/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/67/4ce889ccbb44dc05e8e07ef9630530')
-
 
 from otu_info import genome_sizes   # noqa
 

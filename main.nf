@@ -19,7 +19,7 @@ workflow  {
     var_output = VARIANT_INPUT(input_ref, input_vcf)
 
     ref_genome = var_output.ref
-    // benchmark_ground_truth = var_output.subset_vcf -- will use later, once I know how to integrate epi2me pipeline
+    // // benchmark_ground_truth = var_output.subset_vcf -- will use later, once I know how to integrate epi2me pipeline
     ind_genome = var_output.ind_genome
 
     // Preprocess genome for sequence simulation

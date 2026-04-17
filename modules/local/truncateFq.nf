@@ -11,7 +11,6 @@ process truncateFq {
             else {"${fn}" }
         }
     )
-    conda "${params.conda_base_dir}/boss2"
     input: 
         path aligned_fastq
     output: 

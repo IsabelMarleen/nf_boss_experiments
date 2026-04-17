@@ -3,7 +3,7 @@
 # Nextflow logs and other files
 .nextflow.log*
 .nextflow/
-nextflow.config
+conf/custom.config
 
 # File to keep some notes
 notes.txt
