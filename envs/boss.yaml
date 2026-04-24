@@ -1,0 +1,10 @@
+name: boss_runs
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::mappy=2.28
+- conda-forge::python=3.12.0
+- pip
+- pip:
+  - boss_runs==0.3.2

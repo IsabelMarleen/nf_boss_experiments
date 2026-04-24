@@ -1,5 +1,4 @@
 process processOtu{
-    clusterOptions '--mem=1G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:01:00'
     input:
         val otu_clean_names
         val otu_genome_sizes

@@ -1,8 +1,5 @@
 // Create toml file from preprocessing
 process writeToml {
-    clusterOptions '--mem=1G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
-    publishDir "${params.output_dir_br_input}", mode: 'copy'
-    // cache false
     input: 
         path full_fq
         path full_paf

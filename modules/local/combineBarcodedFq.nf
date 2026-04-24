@@ -1,13 +1,4 @@
 process combineBarcodedFq{
-    clusterOptions '--nodes=1 --cpus-per-task=8 --ntasks=1'
-    memory { 64.GB * params.readnumber.values().size() * task.attempt }
-    time { 20.min * params.readnumber.values().size() * task.attempt }
-    maxRetries 3
-    errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
-    publishDir(
-        path: "${params.output_dir_br_input}", 
-        mode: 'symlink'
-    )
     input: 
         path barcoded_fastq
     output: 

@@ -1,6 +1,4 @@
 process create_coverage_dataframe { 
-    clusterOptions '--mem=12G --nodes=1 --cpus-per-task=1 --ntasks=1 --time=00:05:00'
-    publishDir "${params.output_dir_debug}/results", mode: 'symlink'
     input:
         path csv
     output:

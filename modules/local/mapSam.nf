@@ -1,8 +1,5 @@
 process mapSam {
     tag "${reads.getSimpleName()}"
-    clusterOptions '--mem=32G --nodes=1 --cpus-per-task=32 --ntasks=1 --time=00:30:00'
-    conda "${params.conda_envs}/simulation.yaml"
-    container "https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/90/90b05084d03e6b3d92e923b983f0ed5785b03169521d4e3bc85152f6c3b32122/data"
     input:
         file reads
         file unzipped_ref

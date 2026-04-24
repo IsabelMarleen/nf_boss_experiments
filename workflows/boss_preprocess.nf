@@ -24,9 +24,8 @@ workflow PREPROCESS_BOSS{
         trunc_fq = truncateFq(aligned_fastq)
 
         // Scan fq offsets Step 2 of prepare input for BRsim
-        boss_sampler = Channel.fromPath(params.abs_path_to_boss_repo+"/sampler.py")
         fq_combined = trunc_fq.full_fq.mix(trunc_fq.trunc_fq)
-        fq_offsets = scan_offsetsFq(fq_combined, boss_sampler)
+        fq_offsets = scan_offsetsFq(fq_combined)
         // TODO: Combine input genomes into one file using cat
 
         // Map paf Step 3 of prepare input for BRsim
@@ -58,9 +57,8 @@ workflow PREPROCESS_From_seq{
         trunc_fq = truncateFq(full_fq)
 
         // Scan fq offsets Step 2 of prepare input for BRsim
-        boss_sampler = Channel.fromPath(params.abs_path_to_boss_repo+"/sampler.py")
         fq_combined = full_fq.mix(trunc_fq.trunc_fq)
-        fq_offsets = scan_offsetsFq(fq_combined, boss_sampler)
+        fq_offsets = scan_offsetsFq(fq_combined)
 
         // Map paf Step 3 of prepare input for BRsim
         mpaf = mapPaf(full_fq, ref)
