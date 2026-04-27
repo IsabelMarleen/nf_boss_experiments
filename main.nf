@@ -5,29 +5,33 @@
  */
 
 
-include {VARIANT_INPUT} from './modules/variant_input/boss_variant_input.nf'
-include {PREPROCESS_BOSS} from './modules/preprocess/boss_preprocess.nf'
-include {SEQUENCE_BOSS;SEQUENCE_PROFILE_BOSS} from './modules/sequence/boss_sequence.nf'
-include {ANALYSE_BOSS;BENCHMARK_VCF} from './modules/analyse/boss_analyse.nf'
+include {VARIANT_INPUT} from './workflows/boss_variant_input.nf'
+include {SIMULATE_FRAGMENTS_BOSS} from './workflows/boss_simulate_fragments.nf'
+include {PREPROCESS_BOSS} from './workflows/boss_preprocess.nf'
+include {SEQUENCE_BOSS;SEQUENCE_PROFILE_BOSS} from './workflows/boss_sequence.nf'
+include {ANALYSE_BOSS} from './workflows/boss_analyse.nf'
 
 workflow  {
-    // Get genome with variants from benchmark vcf set
-    input_ref = Channel.of(params.link_ref)
-    input_vcf = Channel.of(params.link_vcf)
-    input_vcf_idx = Channel.of(params.link_vcf_idx)
+    main:
+        // Get genome with variants from benchmark vcf set
+        input_ref = Channel.of(params.link_ref)
+        input_vcf = Channel.of(params.link_vcf).flatMap()
 
-    var_output = VARIANT_INPUT(input_ref, input_vcf, input_vcf_idx)
+        var_output = VARIANT_INPUT(input_ref, input_vcf)
 
-    ref_genome = var_output.ref
-    // benchmark_ground_truth = var_output.subset_vcf -- will use later, once I know how to integrate epi2me pipeline
-    ind_genome = var_output.ind_genome
+        ref_genome = var_output.ref
+        // // benchmark_ground_truth = var_output.subset_vcf -- will use later, once I know how to integrate epi2me pipeline
+        ind_genome = var_output.ind_genome
 
-    // Preprocess genome for sequence simulation
-    preprocessed = PREPROCESS_BOSS(ind_genome, ref_genome)
+        // Preprocess genome for sequence simulation
+        sim_fragments = SIMULATE_FRAGMENTS_BOSS(ind_genome)
 
-    // Run sequence simulation
-    sequenced = SEQUENCE_PROFILE_BOSS(preprocessed)
+        // Preprocess genome for sequence simulation
+        preprocessed = PREPROCESS_BOSS(sim_fragments, ref_genome)
 
-    // Analyse seq output
-    ANALYSE_BOSS(sequenced.reads_dir, sequenced.l, ref_genome)
+        // Run sequence simulation
+        sequenced = SEQUENCE_PROFILE_BOSS(preprocessed)
+
+        // Analyse seq output
+        ANALYSE_BOSS(sequenced.reads_dir, sequenced.l, ref_genome)
 }

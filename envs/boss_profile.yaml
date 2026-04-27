@@ -1,0 +1,13 @@
+name: boss_profile
+channels:
+- conda-forge
+- bioconda
+dependencies:
+- bioconda::mappy=2.28
+- conda-forge::python=3.10
+- bioconda::gfatools
+- bioconda::minimap2
+- bioconda::miniasm
+- pip:
+  - "--editable=git+https://github.com/IsabelMarleen/BOSS-RUNS.git@barcodes_bug_fix"
+  - memray=1.19.1
