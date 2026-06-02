@@ -24,7 +24,7 @@ workflow SEQUENCE_PROFILE_BOSS{
         input_toml 
     main:
         seq = TimeProfilerunBRSim(input_toml)
-        mem = MemProfilerunBRSim(input_toml)
+        MemProfilerunBRSim(input_toml)
     emit:
         dir = seq.dir
         reads_dir = seq.reads_dir
