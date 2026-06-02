@@ -1,0 +1,40 @@
+#!/usr/bin/env nextflow
+
+// Run using 'nextflow run boss_sequence.nf -entry SEQUENCE_BOSS -with-conda -resume -c ../nextflow.config'
+/*
+ * Pipeline parameters in nextflow.config
+ */
+include {runBRSim} from "../../modules/local/runBRSim.nf"
+include {TimeProfilerunBRSim} from "../../modules/local/TimeProfilerunBRSim.nf"
+include {MemProfilerunBRSim} from "../../modules/local/MemProfilerunBRSim.nf"
+
+workflow SEQUENCE_BOSS{
+    take:
+        input_toml
+    main:
+        seq = runBRSim(input_toml)
+    emit:
+        dir = seq.out[0]
+        reads_dir = seq.out[1]
+        log = seq.out[2]
+}
+
+workflow SEQUENCE_PROFILE_BOSS{
+    take:
+        input_toml 
+    main:
+        seq = TimeProfilerunBRSim(input_toml)
+        mem = MemProfilerunBRSim(input_toml)
+    emit:
+        dir = seq.dir
+        reads_dir = seq.reads_dir
+        l = seq.log
+        cprofile = seq.cprofile
+        cprofile_stdout = seq.cprofile_stdout
+
+}
+
+workflow  {
+    input_toml = channel.of(params.toml)
+    SEQUENCE_PROFILE_BOSS(input_toml)
+}

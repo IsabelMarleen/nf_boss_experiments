@@ -5,11 +5,11 @@
  */
 
 
-include {VARIANT_INPUT} from './workflows/boss_variant_input.nf'
-include {SIMULATE_FRAGMENTS_BOSS} from './workflows/boss_simulate_fragments.nf'
-include {PREPROCESS_BOSS} from './workflows/boss_preprocess.nf'
-include {SEQUENCE_BOSS;SEQUENCE_PROFILE_BOSS} from './workflows/boss_sequence.nf'
-include {ANALYSE_BOSS} from './workflows/boss_analyse.nf'
+include {VARIANT_INPUT} from './subworkflows/local/boss_variant_input.nf'
+include {SIMULATE_FRAGMENTS_BOSS} from './subworkflows/local/boss_simulate_fragments.nf'
+include {PREPROCESS_BOSS} from './subworkflows/local/boss_preprocess.nf'
+include {SEQUENCE_BOSS;SEQUENCE_PROFILE_BOSS} from './subworkflows/local/boss_sequence.nf'
+include {ANALYSE_BOSS} from './subworkflows/local/boss_analyse.nf'
 
 workflow  {
     main:
