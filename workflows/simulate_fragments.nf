@@ -9,9 +9,8 @@ workflow SIM{
 
         var_output = VARIANT_INPUT(input_ref, input_vcf)
 
-        ref_genome = var_output.ref
         ind_genome = var_output.ind_genome
 
         // Preprocess genome for sequence simulation
-        sim_fragments = SIMULATE_FRAGMENTS_BOSS(ind_genome)
+        SIMULATE_FRAGMENTS_BOSS(ind_genome)
 }
