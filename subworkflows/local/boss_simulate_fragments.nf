@@ -1,9 +1,6 @@
 #!/usr/bin/env nextflow
 
 
-/*
- * Pipeline parameters in ../nextflow.config
- */
 include {simNanofastq} from "../../modules/local/simNanofastq.nf"
 include {addBarcodes} from "../../modules/local/addBarcodes.nf"
 include {combineBarcodedFq} from "../../modules/local/combineBarcodedFq.nf"
