@@ -13,7 +13,7 @@ process writeToml {
         path("*.toml")
 
     script:
-    maxb = params.readnumber.values().sum()*0.6/params.batch_size as Integer
+    maxb = (params.readnumber.values().sum()*0.6/params.batch_size)-2 as Integer
     if (params.barcodes == null){
         bc_string = ""
     }

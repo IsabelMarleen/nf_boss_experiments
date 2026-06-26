@@ -1,45 +1,22 @@
 {
-    "base_out_dir": "output_dir",
-    "base_input_dir": "input_dir",
-    "software_dir": "software_dir",
-    "conda_base_dir": "conda/envs",
     "exp_name": "benchmark_hg002_chr21",
+    "type": "trios",
     
-    "chromosomes": ["21"],
+    "chromosomes": ["21", "22"],
     "link_ref": "https://ftp.ensembl.org/pub/release-114/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.chromosome.",
 
-    "link_vcf": "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz",
-    "link_vcf_idx": "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz.tbi",
-    "output_dir_vi": "${params.base_out_dir}/${params.exp_name}/variant_input",
-
-    "abs_path_to_nanosim_repo": "${params.software_dir}/NanoSim",
-    "model": "${params.abs_path_to_nanosim_repo}/pre-trained_models/human_giab_hg002_sub1M_kitv14_dorado_v3.2.1/training",
+    "link_vcf": [["https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz","https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz.tbi"]],
+ 
+    "model": "${path to nanosim directory}/pre-trained_models/human_giab_hg002_sub1M_kitv14_dorado_v3.2.1/training",
     "readnumber": {"HG002": 1000000},
 
     "otu_clean_names": "{'21': 'hschr21', '22': 'hschr22'}",
     "otu_genome_sizes": "{'hschr21': 45090682, 'hschr22': 49528953}",
 
-    "abspath_to_boss_runs_repo": "${params.software_dir}/BOSS-RUNS2",
     "mu": 400,
     "dump_time": 35000000,
     "accept_unmapped": "true",
     "batch_size": 10000,
-
-    "base_out_preprocess": "${params.base_out_dir}/${params.exp_name}",
-    "output_dir_nanosim": "${params.base_out_preprocess}/nanosim_out",
-    "output_dir_br_input": "${params.base_out_preprocess}/br_input",
-    "output_dir_br_output": "${params.base_out_preprocess}/br_output",
-
-    "script_path": "${projectDir}/bin/",
-
-    "base_in_dir": "${params.base_out_dir}/${params.exp_name}",
-    "seq_br_output": "${params.base_in_dir}/sequence/br_output",
-
     "pores": 512,
-
-    "analyse_script_path": "${projectDir}/modules/analyse/bin",
-    "conda_envs": "${projectDir}/envs",
-    "output_dir_results": "${params.base_out_dir}/results",
-    "output_dir_debug": "${params.base_out_dir}/debug",
-    "rtg_dir_path": "${params.software_dir}/rtg-tools-3.13"
+    "barcodes": {"HG002": "barcode05"}
   }
