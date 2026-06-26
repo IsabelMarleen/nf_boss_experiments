@@ -54,6 +54,10 @@ def parse_aln(aln_path: str, target_dict: dict) -> dict:
                 rid = re.sub(r".(unclassified|barcode([0-9]+))", "", ll[0])
                 read_barcodes[rid] = int(barcode_search[0].split('barcode')[1])
                 try:
+                    target_dict[target] # Check whether the target is one we are interested in
+                except KeyError:  
+                    continue
+                try:
                     target_barcodes[target_dict[target]].append(int(barcode_search[0].split('barcode')[1]))
                 except KeyError:
                     target_barcodes[target_dict[target]] = []
@@ -65,13 +69,19 @@ def parse_aln(aln_path: str, target_dict: dict) -> dict:
             aln_score = int(ll[14].split(':')[-1])
             # if the rid is not recorded yet, just add it
             if rid not in read_targets.keys():
-                read_targets[rid] = target_dict[target]
+                try:
+                    read_targets[rid] = target_dict[target]
+                except KeyError:
+                    continue
                 rid_aln_scores[rid] = aln_score
             else:
                 # if the rid is already recorded, check whether this one has higher aln score
                 # and only overwrite if its higher
                 if aln_score > rid_aln_scores[rid]:
-                    read_targets[rid] = target_dict[target]
+                    try:
+                        read_targets[rid] = target_dict[target]
+                    except KeyError:
+                        continue
     return read_targets, read_barcodes, target_barcodes
 
 
