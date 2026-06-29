@@ -1,0 +1,35 @@
+{
+  "name": "nf-boss-experiments",
+  "homePage": "https://github.com/IsabelMarleen/nf_boss_experiments",
+  "repos": {
+    "https://github.com/nf-core/modules.git": {
+      "modules": {
+        "nf-core": {
+          "clair3": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          },
+          "happy/happy": {
+            "branch": "master",
+            "git_sha": "59697ca2f109700926f11a1718efcb3ce5b99ed4",
+            "installed_by": ["modules"]
+          },
+          "happy/prepy": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          },
+          "sniffles": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          }
+        }
+      },
+      "subworkflows": {
+        "nf-core": {}
+      }
+    }
+  }
+}
