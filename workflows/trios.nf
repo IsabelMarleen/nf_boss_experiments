@@ -1,4 +1,6 @@
-include {VARIANT_INPUT} from '../subworkflows/local/boss_variant_input.nf'
+#!/usr/bin/env nextflow
+
+include {VARIANT_INPUT_BOSS} from '../subworkflows/local/boss_variant_input.nf'
 include {SIMULATE_FRAGMENTS_BOSS} from '../subworkflows/local/boss_simulate_fragments.nf'
 include {PREPROCESS_BOSS} from '../subworkflows/local/boss_preprocess.nf'
 include {SEQUENCE_PROFILE_BOSS} from '../subworkflows/local/boss_sequence.nf'
@@ -10,7 +12,7 @@ workflow TRIOS{
         input_ref = Channel.of(params.link_ref)
         input_vcf = Channel.of(params.link_vcf).flatMap()
 
-        var_output = VARIANT_INPUT(input_ref, input_vcf)
+        var_output = VARIANT_INPUT_BOSS(input_ref, input_vcf)
 
         ref_genome = var_output.ref
         ind_genome = var_output.ind_genome
