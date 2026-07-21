@@ -1,3 +1,5 @@
+#!/usr/bin/env nextflow
+
 include {ANALYSE_BOSS} from '../subworkflows/local/boss_analyse.nf'
 
 workflow  ANALYSE{
