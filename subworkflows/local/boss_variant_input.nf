@@ -6,7 +6,7 @@ include {getVCF} from "../../modules/local/getVCF.nf"
 include {subsetVCF} from "../../modules/local/subsetVCF.nf"
 include {getConsensus} from "../../modules/local/getConsensus.nf"
 
-workflow VARIANT_INPUT{
+workflow VARIANT_INPUT_BOSS{
     take:
         input_ref
         input_vcf_idx
