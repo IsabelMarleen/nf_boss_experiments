@@ -2,12 +2,13 @@
 process truncateFq {
     input: 
         path aligned_fastq
+        val mu
     output: 
         path "*_trunc.fq", emit:trunc_fq
         path aligned_fastq, emit:full_fq
 
     script:
     """
-    cut -c -${params.mu} ${aligned_fastq} > ${aligned_fastq.getSimpleName()}_trunc.fq
+    cut -c -${mu} ${aligned_fastq} > ${aligned_fastq.getSimpleName()}_trunc.fq
     """
 }
