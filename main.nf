@@ -10,6 +10,7 @@ include {SEQUENCE_BOSS;SEQUENCE_PROFILE_BOSS} from './subworkflows/local/boss_se
 include { SIM } from './workflows/simulate_fragments.nf'
 include { TRIOS } from './workflows/trios.nf'
 include { ANALYSE } from './workflows/analyse.nf'
+include { FROMSEQ } from './workflows/full_pipeline_from_seq.nf'
 include {VARIANT_CALL_BENCHMARK} from './workflows/variant_call_benchmark.nf'
 
 workflow  {
@@ -22,6 +23,9 @@ workflow  {
             ANALYSE()
         } else if (params.type == "simulate") {
             SIM()
+        }
+         else if (params.type == "from_seq") {
+            FROMSEQ()
         }
         else if (params.type == "variant_call"){
             VARIANT_CALL_BENCHMARK()
