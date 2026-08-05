@@ -10,9 +10,9 @@ workflow SEQUENCE_BOSS{
     main:
         seq = runBRSim(input_toml)
     emit:
-        dir = seq.out[0]
-        reads_dir = seq.out[1]
-        log = seq.out[2]
+        dir = seq.dir
+        reads_dir = seq.reads_dir
+        l = seq.log
 }
 
 workflow SEQUENCE_PROFILE_BOSS{
