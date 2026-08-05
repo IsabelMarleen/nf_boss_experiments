@@ -12,7 +12,7 @@ process combineBarcodedFq{
                 getline qual; \
                 print \$0,seq,sep,qual}' | \
     shuf | \
-    awk '{OFS="\\n"; print \$1 " " \$2,\$3,\$4,\$5}' \
+    awk -F"\\t" '{OFS="\\n"; print \$1,\$2,\$3,\$4}' \
     > ${params.exp_name}_combined_barcoded.fq
     """
 }
