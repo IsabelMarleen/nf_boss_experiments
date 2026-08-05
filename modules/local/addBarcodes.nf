@@ -1,9 +1,11 @@
 process addBarcodes{
     input: 
         path simulated_fastq
+        val barcoding_needed
     output: 
         path "*_barcoded.fq", emit:barcoded_fq
-
+    when:
+        barcoding_needed
     script:
     labels = params.barcodes.keySet().join("|")
     def matcher = simulated_fastq =~ "$labels"
