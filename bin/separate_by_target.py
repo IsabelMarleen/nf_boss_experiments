@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 
+import re
 import sys
 from os import path
-import re
+
 PARENT_DIR = path.dirname(path.dirname(path.abspath(__file__)))
 sys.path.append(PARENT_DIR)
 sys.path.append('.')
 
 import numpy as np
-
-from otu_info import otus_clean_names   # noqa
+from otu_info import otus_clean_names  # noqa
 from readfq import readfq
-
 
 """
 this script is used to separate a fq file into multiple fqs given the mappings in a paf or sam file 
@@ -68,7 +67,7 @@ def parse_aln(aln_path: str, target_dict: dict) -> dict:
             
             aln_score = int(ll[14].split(':')[-1])
             # if the rid is not recorded yet, just add it
-            if rid not in read_targets.keys():
+            if rid not in read_targets:
                 try:
                     read_targets[rid] = target_dict[target]
                 except KeyError:
@@ -99,13 +98,16 @@ def write_target_reads(read_targets: dict, fq: str, target_dict: dict, read_barc
     fq_base = fq.split('/')[-1].split('.')[0]
 
     # open a file for each target
-    target_files = dict()
+    target_files = {}
     for t in targets:
         if target_barcodes == {}:
             target_files[t] = open(f'{fq_base}_{t}.fq', 'w')
         else:
-            for b in np.unique(target_barcodes[t]):
-                target_files[t+str(b)] = open(f'{fq_base}_bc{b}_{t}.fq', 'w')
+            try:
+                for b in np.unique(target_barcodes[t]):
+                    target_files[t+str(b)] = open(f'{fq_base}_bc{b}_{t}.fq', 'w')
+            except KeyError:
+                continue
 
     # iterate over file and write the fq into the correct file
     with open(fq, 'r') as fastq:
