@@ -9,6 +9,6 @@ process runBRSim {
 
     script:
     """
-    boss --toml ${params.toml}
+    boss --toml $toml
     """
 }
