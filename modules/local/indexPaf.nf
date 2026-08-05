@@ -7,6 +7,11 @@ process indexPaf{
     script:
         """
         minimap2 -d ref.mmi $ref
-        gunzip $ref -c > ${ref.getSimpleName()}.fa
+        if [[ $ref == *.gz ]]
+        then
+            gunzip $ref -c > ${ref.getSimpleName()}.fa
+        else
+            cat $ref > ${ref.getSimpleName()}_unzipped.fa
+        fi
         """
 }
