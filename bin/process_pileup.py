@@ -99,12 +99,12 @@ def process_pup(pup: str, otu_size: int, pup_full: str):
     evenness = calc_evenness(cov=cov, otu_size=otu_size)
 
     with open(pup_full, "w") as output:
-        if len(meta) > 2:
-            if time == 1:
+        if len(meta) > 3:
+            if int(time) == 1:
                 output.write(f'{cond},0,{otu},{bc},0,1,0\n')
             output.write(f'{cond},{time},{otu},{bc},{mean_cov},{lowcov_p},{evenness}\n')
         else:
-            if time == 1:
+            if int(time) == 1:
                 output.write(f'{cond},0,{otu},0,1,0\n')
             output.write(f'{cond},{time},{otu},{mean_cov},{lowcov_p},{evenness}\n')
 
