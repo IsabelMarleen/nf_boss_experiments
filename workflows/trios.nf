@@ -3,7 +3,7 @@
 include {VARIANT_INPUT_BOSS} from '../subworkflows/local/boss_variant_input.nf'
 include {SIMULATE_FRAGMENTS_BOSS} from '../subworkflows/local/boss_simulate_fragments.nf'
 include {PREPROCESS_BOSS} from '../subworkflows/local/boss_preprocess.nf'
-include {SEQUENCE_PROFILE_BOSS} from '../subworkflows/local/boss_sequence.nf'
+include {SEQUENCE_PROFILE_BOSS; SEQUENCE_BOSS} from '../subworkflows/local/boss_sequence.nf'
 include {ANALYSE_BOSS} from '../subworkflows/local/boss_analyse.nf'
 include {POSTPROCESS_BOSS} from '../subworkflows/local/boss_postprocess.nf'
 include { BENCHMARK_HUMAN_VCF } from '../subworkflows/local/boss_human_variantcall.nf'
@@ -34,18 +34,23 @@ workflow TRIOS{
         preprocessed = PREPROCESS_BOSS(sim_fragments, ref_genome)
 
         // Run sequence simulation
-        sequenced = SEQUENCE_PROFILE_BOSS(preprocessed)
-        
+        if (params.profile == true){
+            sequenced = SEQUENCE_PROFILE_BOSS(preprocessed)
+        }
+        else {
+            sequenced = SEQUENCE_BOSS(preprocessed)
+        }
+
         // Postprocess sequencing results
-        processed = POSTPROCESS_BOSS(sequenced.reads_dir, sequenced.log, ref_genome)
+        processed = POSTPROCESS_BOSS(sequenced.reads_dir, sequenced.l, ref_genome)
 
         // If applicable, run variant call benchmark
         if (params.benchmark){
-            benchmark_summary = BENCHMARK_HUMAN_VCF(processed.merged_bam, ref_genome, var_output.subsetVCF)
+            benchmark_summary = BENCHMARK_HUMAN_VCF(processed.merged_bam, processed.ref_unzipped.collect(), var_output.subset_vcf)
         } else{
             benchmark_summary = []
         }
 
         // Visualise analysis results
-        ANALYSE_BOSS(processed.coverage, processed.unblocks, processed.l, processed.otu, benchmark_summary)
+        ANALYSE_BOSS(processed.coverage, processed.unblocks, processed.l, processed.otu, benchmark_summary.collect())
 }
