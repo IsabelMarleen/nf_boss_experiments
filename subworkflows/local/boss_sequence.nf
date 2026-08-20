@@ -25,7 +25,6 @@ workflow SEQUENCE_PROFILE_BOSS{
         dir = seq.dir
         reads_dir = seq.reads_dir
         l = seq.log
-        cprofile = seq.cprofile
-        cprofile_stdout = seq.cprofile_stdout
+        lprofile = seq.lprofile
 
 }
