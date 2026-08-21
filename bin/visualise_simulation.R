@@ -321,7 +321,7 @@ alpha_val <- 0.3
   
   
   # Variant call summary plots if relevant
-  if (vcf_summary != NULL){
+  if (length(vcf_summary) > 0){
     # load vcf summary file
     processed_hap <- read_csv(vcf_summary) %>%
       rename("cond" = "exp", "time" = "time_point", "bc"="barcode")%>%
