@@ -54,7 +54,6 @@ workflow BENCHMARK_HUMAN_VCF{
         fai = SAMTOOLS_FAIDX(fai_in_ch, false)
         fai_ch = fai.fai.collect()
 
-
         snp_calls = CLAIR3(
             ch_input_clair3,    // tuple(meta, bam, bai, packaged_model, user_model, platform)
             fasta,              // tuple(meta2, fasta)
@@ -64,27 +63,52 @@ workflow BENCHMARK_HUMAN_VCF{
         // sv_calls = SNIFFLES
         bed_ch = channel.of(params.link_bed)
         bed_files = getFile(bed_ch.flatten())
-        bed = extract_bc_meta(bed_files)
+        bed = bed_files.map{
+            bed ->         
+            def labels = params.barcodes.keySet().join("|")
+            def matcher = bed =~ "$labels"
+            def long_bc = params.barcodes[matcher[0]]
+            def subs = long_bc.substring(7) as Integer as String
+            def meta = [bc: "bc".plus(subs)]
+            tuple(meta, bed)}
 
-        happrep_in_vcf = snp_calls.vcf
-        .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
-        .combine(bed, by:0)
-        .map{meta1, meta2, vcf, bd -> tuple(meta2+meta1,vcf,bd)}
+        // happrep_in_vcf = snp_calls.vcf
+        // .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
+        // .combine(bed, by:0)
+        // .map{meta1, meta2, vcf, bd -> tuple(meta2+meta1,vcf,bd)}
 
-        prepped = HAPPY_PREPY(happrep_in_vcf, fasta, fai_ch)
+        // prepped = HAPPY_PREPY(happrep_in_vcf, fasta, fai_ch)
 
         // Prep input for HAPPY_HAPPY (variant benchmark)
-        truth_vcf_bc = extract_bc_meta_vcf(truth_vcf)
+        truth_vcf_bc = truth_vcf.map{
+            vcf ->         
+            def labels = params.barcodes.keySet().join("|")
+            def matcher = vcf =~ "$labels"
+            def long_bc = params.barcodes[matcher[0]]
+            def subs = long_bc.substring(7) as Integer as String
+            def meta = [bc: "bc".plus(subs)]
+            tuple(meta, vcf)}
 
-        happy_input = prepped.preprocessed_vcf
+        // happy_input = prepped.preprocessed_vcf
+        //     .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
+        //     .combine(truth_vcf_bc, by:0)
+        //     .combine(bed, by:0)
+        //     .map{_bc, meta, query_vcf, true_vcf, bd -> tuple(meta,query_vcf, true_vcf[0],[], bd)}
+
+        // No prepy
+        happy_input = snp_calls.vcf
             .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
             .combine(truth_vcf_bc, by:0)
             .combine(bed, by:0)
-            .map{_bc, meta, query_vcf, true_vcf, bd -> tuple(meta,query_vcf, true_vcf,[], bd)}
+            .map{_bc, meta, query_vcf, true_vcf, bd -> tuple(meta,query_vcf, true_vcf[0],[], bd)}
 
-        strat_link_ch = channel.of(params.stratification_tar)
-        strat_dir_tar = getFile_strat(strat_link_ch)
-        // strat_dir_tar = channel.fromPath("/hps/nobackup/goldman/ipoetzsch/boss_experiments/work/39/28ba3af29dd477097b27508c40824e/genome-stratifications-GRCh38@all.tar.gz")
+        if (file(params.stratification_tar).exists()){
+            strat_dir_tar = channel.of(params.stratification_tar)
+        } else {
+            strat_link_ch = channel.of(params.stratification_tar)
+            strat_dir_tar = getFile_strat(strat_link_ch)
+        }
+        
         strat_file_ch = channel.of(params.stratification_file)
         strat = extractTar(strat_dir_tar, strat_file_ch)
         strat_dir = strat.path.map{dir -> tuple([id:dir.simpleName], dir)}
@@ -92,8 +116,8 @@ workflow BENCHMARK_HUMAN_VCF{
 
 
         result = HAPPY_HAPPY(happy_input, fasta.collect(), fai_ch.collect(), [[:], []].collect() ,strat_tsv.collect(), strat_dir.collect())
-
+        res = result.summary_csv.map{_meta, csv -> csv}
     emit:
-        result.summary_csv
+        res
     
 }
