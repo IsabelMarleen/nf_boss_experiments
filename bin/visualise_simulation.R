@@ -20,7 +20,7 @@ get_arguments <- function() {
   parser$add_argument('--analysed_log', required = TRUE)
   parser$add_argument('--output', required = TRUE)
   parser$add_argument('--output_vcf', required = FALSE, default=NULL)
-  parser$add_argument('--vcf_summary', required = FALSE, default = NULL)
+  parser$add_argument('--vcf_summary', required = FALSE, default = NULL, nargs='+')
   args<- parser$parse_args(commandArgs(trailingOnly = TRUE))
   return(args)
 }
@@ -39,7 +39,7 @@ visualise_simulation <- function(ptol, nrow) {
   seq_speed  <- 400
 
   vcf_summary <- args$vcf_summary
-  vcf_output <- args$vcf_output
+  vcf_output <- args$output_vcf
 
   # ANALYSED LOG ----
   # load the analysed log
