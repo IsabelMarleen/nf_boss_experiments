@@ -72,12 +72,12 @@ workflow BENCHMARK_HUMAN_VCF{
             def meta = [bc: "bc".plus(subs)]
             tuple(meta, bed)}
 
-        // happrep_in_vcf = snp_calls.vcf
-        // .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
-        // .combine(bed, by:0)
-        // .map{meta1, meta2, vcf, bd -> tuple(meta2+meta1,vcf,bd)}
+        happrep_in_vcf = snp_calls.vcf
+        .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
+        .combine(bed, by:0)
+        .map{meta1, meta2, vcf, bd -> tuple(meta2+meta1,vcf,bd)}
 
-        // prepped = HAPPY_PREPY(happrep_in_vcf, fasta, fai_ch)
+        prepped = HAPPY_PREPY(happrep_in_vcf, fasta, fai_ch)
 
         // Prep input for HAPPY_HAPPY (variant benchmark)
         truth_vcf_bc = truth_vcf.map{
@@ -89,18 +89,18 @@ workflow BENCHMARK_HUMAN_VCF{
             def meta = [bc: "bc".plus(subs)]
             tuple(meta, vcf)}
 
-        // happy_input = prepped.preprocessed_vcf
-        //     .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
-        //     .combine(truth_vcf_bc, by:0)
-        //     .combine(bed, by:0)
-        //     .map{_bc, meta, query_vcf, true_vcf, bd -> tuple(meta,query_vcf, true_vcf[0],[], bd)}
-
-        // No prepy
-        happy_input = snp_calls.vcf
+        happy_input = prepped.preprocessed_vcf
             .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
             .combine(truth_vcf_bc, by:0)
             .combine(bed, by:0)
             .map{_bc, meta, query_vcf, true_vcf, bd -> tuple(meta,query_vcf, true_vcf[0],[], bd)}
+
+        // // No prepy
+        // happy_input = snp_calls.vcf
+        //     .map{meta, vcf -> tuple([bc:vcf.simpleName.split(/_/)[2]], meta, vcf)}
+        //     .combine(truth_vcf_bc, by:0)
+        //     .combine(bed, by:0)
+        //     .map{_bc, meta, query_vcf, true_vcf, bd -> tuple(meta,query_vcf, true_vcf[0],[], bd)}
 
         if (file(params.stratification_tar).exists()){
             strat_dir_tar = channel.of(params.stratification_tar)
