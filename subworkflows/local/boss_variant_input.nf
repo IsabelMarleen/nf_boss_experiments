@@ -39,6 +39,6 @@ workflow VARIANT_INPUT_BOSS{
         
     emit:
         ref
-        subsetVCF
+        subset_vcf
         ind_genome
 }
