@@ -119,5 +119,6 @@ workflow POSTPROCESS_BOSS{
         unblocks = unblocks
         l = analysed_log
         otu = otu
+        ref_unzipped
 }
 
