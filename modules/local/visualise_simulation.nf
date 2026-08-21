@@ -11,6 +11,7 @@ process visualise_simulation {
 
     script:
     chr_num = params.otu_clean_names.size()
+    def benchmark = vcf_summary ? "--output_vcf ${params.exp_name}_vcf_plots.pdf --vcf_summary ${vcf_summary}" : ""
     """
     #now=date +'%Y/%m/%d'
     which Rscript
@@ -30,9 +31,7 @@ process visualise_simulation {
         --dump_time ${params.dump_time} \
         --pores ${params.pores} \
         --analysed_log $analysed_log \
-        --output ${params.exp_name}_plots.pdf \
-        --output_vcf ${params.exp_name}_vcf_plots.pdf \
-        --vcf_summary ${vcf_summary}
+        --output ${params.exp_name}_plots.pdf ${benchmark}
     fi
     """
 }
