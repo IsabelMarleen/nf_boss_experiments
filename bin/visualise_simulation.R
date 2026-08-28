@@ -194,8 +194,8 @@ alpha_val <- 0.3
 
   unb_plot_seq <- ggplot(
       data=unb_cond,
-      mapping=aes(x=seq_time, y=unb_ratio), linewidth=line_thickness, alpha=alpha_val) +
-    geom_line(aes(color=.data[[col]])) +
+      mapping=aes(x=seq_time, y=unb_ratio)) +
+    geom_line(aes(color=.data[[col]]), linewidth=line_thickness, alpha=alpha_val) +
     # geom_point(aes(shape=.data[[col]],fill=.data[[col]], size=.data[[col]]), color="white", stroke=0.005, alpha=0.8) +
     scale_color_manual(values=ptol, guide = "none") +
     ylab("cum. rejection rate") +
@@ -213,8 +213,8 @@ alpha_val <- 0.3
 
   unb_plot_frag <- ggplot(
       data=unb_cond,
-      mapping=aes(x=total, y=unb_ratio),linewidth=line_thickness, alpha=alpha_val) +
-    geom_line(aes(color=.data[[col]])) +
+      mapping=aes(x=total, y=unb_ratio)) +
+    geom_line(aes(color=.data[[col]]),linewidth=line_thickness, alpha=alpha_val) +
     # geom_point(aes(shape=.data[[col]],fill=.data[[col]], size=.data[[col]]), color="white", stroke=0.005, alpha=0.8) +
     scale_color_manual(values=ptol, guide = "none") +
     ylab("cum. rejection rate") +
@@ -231,8 +231,8 @@ alpha_val <- 0.3
 
   nreads_seq <- ggplot(
       data=unb,
-      mapping=aes(x=seq_time, y=total, linetype=cond, colour=.data[[col]]),linewidth=line_thickness, alpha=alpha_val) +
-    geom_line() +
+      mapping=aes(x=seq_time, y=total, linetype=cond, colour=.data[[col]])) +
+    geom_line(linewidth=line_thickness, alpha=alpha_val) +
     xlim(0, max(unb_cond$seq_time))+
     scale_color_manual(values=ptol)+#, guide = "none") +
     ylab("# fragments")
@@ -246,8 +246,8 @@ alpha_val <- 0.3
 
   meanc_seq <- cov %>% 
     filter(seq_time <= max(unb_cond$seq_time))%>%
-    ggplot( mapping=aes(x=seq_time, y=mean_coverage, linetype=cond, colour=.data[[col]]),linewidth=line_thickness, alpha=alpha_val) +
-    geom_line() +
+    ggplot( mapping=aes(x=seq_time, y=mean_coverage, linetype=cond, colour=.data[[col]])) +
+    geom_line(linewidth=line_thickness, alpha=alpha_val) +
     # facet_wrap(~otu, scales="free_y", nrow = nrow) +
     xlim(0, max(unb_cond$seq_time))+
     # ylim(0, max(pull(slice_min(filter(cov, seq_time > max(unb_cond$seq_time)), order_by=time), mean_coverage)))+
@@ -266,8 +266,8 @@ alpha_val <- 0.3
 
   lowc_seq <- ggplot(
       data=cov,
-            mapping=aes(x=seq_time, y=low_coverage_prop, linetype=cond, colour=.data[[col]]),linewidth=line_thickness, alpha=alpha_val) +
-    geom_line() +
+            mapping=aes(x=seq_time, y=low_coverage_prop, linetype=cond, colour=.data[[col]])) +
+    geom_line(linewidth=line_thickness, alpha=alpha_val) +
     # facet_wrap(~otu, scales="free_y", nrow = nrow) +
     scale_color_manual(values=ptol) +
     xlim(0, max(unb_cond$seq_time))+
@@ -283,8 +283,8 @@ alpha_val <- 0.3
 
   evn_seq <- ggplot(
       data=cov,
-            mapping=aes(x=seq_time, y=evenness, linetype=cond, colour=.data[[col]]),linewidth=line_thickness, alpha=alpha_val) +
-    geom_line() +
+            mapping=aes(x=seq_time, y=evenness, linetype=cond, colour=.data[[col]])) +
+    geom_line(linewidth=line_thickness, alpha=alpha_val) +
     # facet_wrap(~otu, scales="free_y", nrow = nrow) +
     scale_color_manual(values=ptol) +
     xlim(0, max(unb_cond$seq_time))+
